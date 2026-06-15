@@ -170,10 +170,22 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
         if name == "suggest_next_question":
             task_id = arguments["task_id"]
+            workstream = arguments.get("area", "kubernetes")  # area param doubles as workstream hint
+
+            # Pull question bank from API (S3-BA-004); fall back to hardcoded if unavailable
+            bank_resp = await client.get(f"/api/v1/question-bank?workstream={workstream}")
+            if bank_resp.status_code == 200 and bank_resp.json():
+                bank = bank_resp.json()
+            else:
+                bank = [
+                    {"area": q["area"], "text": q["text"], "follow_ups": q.get("follow_ups")}
+                    for q in KUBERNETES_QUESTION_BANK
+                ]
+
             findings_resp = await client.get(f"/api/v1/findings?task_id={task_id}")
             findings = findings_resp.json() if findings_resp.status_code == 200 else []
             covered_areas = {f.get("area") for f in findings if isinstance(f, dict)}
-            suggestions = [q for q in KUBERNETES_QUESTION_BANK if q["area"] not in covered_areas]
+            suggestions = [q for q in bank if q.get("area") not in covered_areas]
             result = suggestions[0] if suggestions else {"text": "Tüm alanlar kapsandı. Interview tamamlanabilir.", "area": "complete"}
             return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
 
