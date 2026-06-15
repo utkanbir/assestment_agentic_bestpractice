@@ -1,22 +1,10 @@
 # FastAPI (aakp-api) + MCP Server — aakp-information namespace
 # S1-DA-002: Application service manifests
 #
-# Before applying: replace <ANTHROPIC_API_KEY> with your actual key, e.g.:
-#   (Get-Content api-manifest.yaml) -replace '<ANTHROPIC_API_KEY>','sk-ant-...' | kubectl apply -f -
-# Or pre-create the secret:
-#   kubectl create secret generic aakp-api-secret -n aakp-information --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+# Secret is NOT in this file — create it manually before applying:
+#   kubectl create secret generic aakp-api-secret -n aakp-information \
+#     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
 
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: aakp-api-secret
-  namespace: aakp-information
-  labels:
-    app.kubernetes.io/part-of: aakp
-type: Opaque
-stringData:
-  ANTHROPIC_API_KEY: "<ANTHROPIC_API_KEY>"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -137,9 +125,6 @@ spec:
         - name: mcp-server
           image: aakp/mcp-server:latest
           imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 8080
           env:
             - name: KAFKA_BOOTSTRAP
               value: "aakp-kafka.aakp-data.svc.cluster.local:9092"
@@ -147,12 +132,6 @@ spec:
               value: "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
             - name: API_BASE_URL
               value: "http://aakp-api.aakp-information.svc.cluster.local:8000"
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
           resources:
             requests:
               memory: 128Mi

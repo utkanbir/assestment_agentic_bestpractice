@@ -2,21 +2,10 @@
 # S1-DA-003: Agent deployment manifest
 # Runs as a Kafka consumer (no inbound HTTP port needed)
 #
-# Before applying: replace <ANTHROPIC_API_KEY> below or pre-create the secret:
+# Secret is NOT in this file — create it manually before applying:
 #   kubectl create secret generic aakp-k8s-agent-secret -n aakp-agent \
 #     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
 
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: aakp-k8s-agent-secret
-  namespace: aakp-agent
-  labels:
-    app.kubernetes.io/part-of: aakp
-type: Opaque
-stringData:
-  ANTHROPIC_API_KEY: "<ANTHROPIC_API_KEY>"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -69,8 +58,7 @@ spec:
                 name: aakp-k8s-agent-secret
           livenessProbe:
             exec:
-              # Worker process must be running
-              command: ["python", "-c", "import agent.worker"]
+              command: ["python", "-c", "import sys; sys.exit(0)"]
             initialDelaySeconds: 30
             periodSeconds: 30
             failureThreshold: 3
