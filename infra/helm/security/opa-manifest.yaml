@@ -1,0 +1,154 @@
+---
+# S5-SA-003: OPA Policy Engine deploy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-opa
+  namespace: aakp-agent
+  labels:
+    app: aakp-opa
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aakp-opa
+  template:
+    metadata:
+      labels:
+        app: aakp-opa
+    spec:
+      containers:
+        - name: opa
+          image: openpolicyagent/opa:0.61.0
+          args:
+            - run
+            - --server
+            - --addr=:8181
+            - --log-format=json
+            - --set=decision_logs.console=true
+            - /policies
+          ports:
+            - containerPort: 8181
+          volumeMounts:
+            - name: policies
+              mountPath: /policies
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8181
+            initialDelaySeconds: 5
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+      volumes:
+        - name: policies
+          configMap:
+            name: aakp-opa-policies
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-opa
+  namespace: aakp-agent
+spec:
+  selector:
+    app: aakp-opa
+  ports:
+    - port: 8181
+      targetPort: 8181
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-opa-policies
+  namespace: aakp-agent
+data:
+  retrieval.rego: |
+    # S5-SA-004: Retrieval guardrail — agent scope kontrolü
+    package aakp.authz
+
+    import future.keywords.if
+    import future.keywords.in
+
+    # Default deny
+    default allow := false
+
+    # Allow if agent's workstream matches requested resource workstream
+    allow if {
+      token_payload := input.token.payload
+      requested_workstream := input.resource.workstream
+      agent_workstream := token_payload.workstream
+      agent_workstream == requested_workstream
+    }
+
+    # Allow orchestrator to access all workstreams
+    allow if {
+      token_payload := input.token.payload
+      token_payload.role == "orchestrator"
+    }
+
+    # Allow consultant role to read all (but not write KG)
+    allow if {
+      token_payload := input.token.payload
+      token_payload.role in ["consultant", "admin"]
+      input.action == "read"
+    }
+
+  governance.rego: |
+    # S5-SA-005: Governance guardrail — ontoloji yazma kısıtı
+    package aakp.governance
+
+    import future.keywords.if
+    import future.keywords.in
+
+    # Default deny KG writes
+    default allow_kg_write := false
+
+    # Only knowledge-reviewer and admin can write to ontology (TBox)
+    allow_kg_write if {
+      token_payload := input.token.payload
+      token_payload.role in ["knowledge-reviewer", "admin"]
+      input.target_graph in [
+        "https://aakp.ai/graph/knowledge",
+        "https://aakp.ai/graph/architecture",
+        "https://aakp.ai/graph/maturity"
+      ]
+    }
+
+    # Any authenticated agent can write to assessment and maturity graphs
+    allow_kg_write if {
+      token_payload := input.token.payload
+      token_payload.sub != ""
+      input.target_graph in [
+        "https://aakp.ai/graph/assessment",
+        "https://aakp.ai/graph/agents"
+      ]
+    }
+
+    # Research Agent ONLY writes to candidate graph — NEVER to approved graphs
+    allow_kg_write if {
+      token_payload := input.token.payload
+      token_payload.role == "research-agent"
+      input.target_graph == "https://aakp.ai/graph/candidate"
+    }
+
+    # Ontology Co-Pilot can write to candidate graph too (for proposals)
+    allow_kg_write if {
+      token_payload := input.token.payload
+      token_payload.role == "copilot-agent"
+      input.target_graph == "https://aakp.ai/graph/candidate"
+    }
+
+    # Violations: log when denied
+    violation contains msg if {
+      not allow_kg_write
+      msg := sprintf("KG write denied: role=%v, graph=%v", [
+        input.token.payload.role,
+        input.target_graph
+      ])
+    }

@@ -1,0 +1,20 @@
+# S5-KA-003: Reddedilen candidate knowledge'ı işaretle (silme — audit için sakla)
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+
+DELETE {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject aakp:candidateStatus "pending" .
+    }
+}
+INSERT {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject aakp:candidateStatus "rejected" .
+    }
+}
+WHERE {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject aakp:candidateStatus "pending" .
+        FILTER(?subject = <%%SUBJECT%%>)
+    }
+}

@@ -40,5 +40,6 @@ async def kg_writer(state: WorkstreamAgentState) -> dict:
 
     return {
         "approved_finding_ids": written_finding_ids,
+        "finding_ids": written_finding_ids,  # S5-AA-002: gate for risk_reasoner
         "phase": "POST_INTERVIEW",
     }

@@ -1,0 +1,51 @@
+---
+# S5-SA-009: Immutable Audit Log Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-audit-log
+  namespace: aakp-information
+  labels:
+    app: aakp-audit-log
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aakp-audit-log
+  template:
+    metadata:
+      labels:
+        app: aakp-audit-log
+    spec:
+      containers:
+        - name: audit-log
+          image: aakp/audit-log:sprint5-sa009
+          ports:
+            - containerPort: 8001
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/aakp"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-audit-log
+  namespace: aakp-information
+spec:
+  selector:
+    app: aakp-audit-log
+  ports:
+    - port: 8001
+      targetPort: 8001

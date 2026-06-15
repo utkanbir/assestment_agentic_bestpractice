@@ -56,6 +56,14 @@ async def create_finding(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
+    # S5-BA-004: evidence must exist before a finding can be created (input guardrail)
+    evidence = await db.get(Evidence, body.evidence_id)
+    if not evidence:
+        raise HTTPException(
+            status_code=422,
+            detail=f"evidence_id {body.evidence_id} not found — findings require valid evidence",
+        )
+
     finding = Finding(**body.model_dump())
     db.add(finding)
     await db.commit()

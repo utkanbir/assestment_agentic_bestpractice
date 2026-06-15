@@ -1,0 +1,91 @@
+---
+# S5-SA-002: Kong + Keycloak JWT validation
+# KongPlugin resources — applied to Kong Ingress routes
+
+# JWT validation plugin (Keycloak JWKS)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: aakp-jwt-auth
+  namespace: aakp-information
+plugin: jwt
+config:
+  # Keycloak JWKS endpoint for aakp realm
+  uri_param_names: ["jwt"]
+  cookie_names: []
+  claims_to_verify: ["exp"]
+  key_claim_name: "iss"
+  secret_is_base64: false
+---
+# OIDC discovery — Keycloak realm URL as issuer
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: aakp-oidc
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: openid-connect
+config:
+  issuer: "http://aakp-keycloak.aakp-agent.svc.cluster.local:8080/realms/aakp"
+  client_id: ["aakp-api"]
+  client_secret: ["aakp-api-client-secret"]
+  auth_methods: ["bearer"]
+  bearer_token_param_type: ["header"]
+  scopes: ["openid", "profile", "email"]
+  verify_claims: true
+---
+# S5-SA-006: Kong + OPA entegrasyonu (/mcp/* route'ları için)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: aakp-opa-authz
+  namespace: aakp-information
+plugin: opa
+config:
+  opa_host: "aakp-opa.aakp-agent.svc.cluster.local"
+  opa_port: 8181
+  opa_path: "/v1/data/aakp/authz/allow"
+  include_body_in_opa_input: false
+  include_parsed_json_body_in_opa_input: false
+---
+# Apply JWT + OPA to /mcp/* ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aakp-mcp-ingress
+  namespace: aakp-information
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/plugins: aakp-oidc,aakp-opa-authz
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-mcp-server
+                port:
+                  number: 8001
+---
+# Apply JWT only to /api/* (OPA for /mcp only)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aakp-api-ingress
+  namespace: aakp-information
+  annotations:
+    kubernetes.io/ingress.class: kong
+    konghq.com/plugins: aakp-oidc
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-api
+                port:
+                  number: 8000

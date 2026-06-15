@@ -1,0 +1,29 @@
+# S5-KA-003: Research Agent'ın önerdiği knowledge'ı candidate graph'a ekle
+# Human approval olmadan graph:knowledge'a yazılmaz — staging bölgesi
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+
+# Parametreler (client tarafından değiştirilir):
+#   ?subject   → önerilen kaynak IRI
+#   ?predicate → önerilen ilişki IRI
+#   ?object    → önerilen hedef IRI veya literal
+#   ?agentId   → öneren agent (örn. "research-agent")
+#   ?reason    → öneri gerekçesi
+
+INSERT {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject ?predicate ?object ;
+                 aakp:candidateStatus "pending" ;
+                 aakp:proposedBy      ?agentId ;
+                 aakp:proposalReason  ?reason .
+    }
+}
+WHERE {
+    BIND(<%%SUBJECT%%>   AS ?subject)
+    BIND(<%%PREDICATE%%> AS ?predicate)
+    BIND(<%%OBJECT%%>    AS ?object)
+    BIND("%%AGENT_ID%%"  AS ?agentId)
+    BIND("%%REASON%%"    AS ?reason)
+}

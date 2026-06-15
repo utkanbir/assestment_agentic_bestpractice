@@ -127,6 +127,36 @@ function Set-TaskStatus {
 | S4-FA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMnM |
 | S4-FA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuNBQ |
 
+### Sprint 5 Item ID'leri
+
+| Task | Item ID |
+|------|---------|
+| S5-SA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMpw |
+| S5-SA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMqA |
+| S5-SA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMqc |
+| S5-SA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuMqs |
+| S5-SA-005 | PVTI_lAHOAP6I-M4Bap_HzgvuMq8 |
+| S5-SA-006 | PVTI_lAHOAP6I-M4Bap_HzgvuMrc |
+| S5-SA-007 | PVTI_lAHOAP6I-M4Bap_HzgvuMrs |
+| S5-SA-008 | PVTI_lAHOAP6I-M4Bap_HzgvuMr4 |
+| S5-SA-009 | PVTI_lAHOAP6I-M4Bap_HzgvuMsU |
+| S5-SA-010 | PVTI_lAHOAP6I-M4Bap_HzgvuMsg |
+| S5-BA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMs0 |
+| S5-BA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMs8 |
+| S5-BA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMtU |
+| S5-BA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuMtw |
+| S5-BA-005 | PVTI_lAHOAP6I-M4Bap_HzgvuMt8 |
+| S5-AA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMuQ |
+| S5-AA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMuw |
+| S5-AA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMvA |
+| S5-AA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuMvM |
+| S5-AA-005 | PVTI_lAHOAP6I-M4Bap_HzgvuMvk |
+| S5-AA-006 | PVTI_lAHOAP6I-M4Bap_HzgvuMvs |
+| S5-AA-007 | PVTI_lAHOAP6I-M4Bap_HzgvuMwM |
+| S5-KA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMwU |
+| S5-KA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMwk |
+| S5-KA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMww |
+
 ## Security
 
 - `ANTHROPIC_API_KEY` asla dosyaya yazılmaz, git'e commit edilmez

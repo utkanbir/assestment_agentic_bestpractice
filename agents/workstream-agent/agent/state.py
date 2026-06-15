@@ -31,7 +31,9 @@ class WorkstreamAgentState(TypedDict):
     should_end_interview: bool
     human_approval_required: bool
     approved_finding_ids: list[str]
+    finding_ids: list[str]          # S5-AA-002: created finding IDs (gate for risk node)
     evidence_captured: bool
+    risks_validated: bool           # S5-AA-003: set by risk_reasoner after OPA validation
 
     # Qdrant similar findings
     similar_findings: list[dict]

@@ -1,0 +1,200 @@
+# S5-KA-001: Tüm entity'ler için tam SHACL validation shapes
+# finding_shapes.ttl ve risk_recommendation_shapes.ttl tamamlayıcısı
+
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix aakp: <https://aakp.ai/ontology/assessment#> .
+@prefix mat:  <https://aakp.ai/ontology/maturity#> .
+@prefix arch: <https://aakp.ai/ontology/architecture#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# ─── Assessment Shape ────────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/AssessmentShape>
+    a sh:NodeShape ;
+    sh:targetClass aakp:Assessment ;
+    sh:name "AssessmentShape" ;
+
+    sh:property [
+        sh:path     aakp:hasClientName ;
+        sh:minCount 1 ;
+        sh:minLength 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Assessment must have a client name." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     aakp:hasProjectName ;
+        sh:minCount 1 ;
+        sh:minLength 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Assessment must have a project name." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     aakp:pgId ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Assessment must carry pgId for cross-store joins." ;
+        sh:severity sh:Warning ;
+    ] .
+
+
+# ─── Interview Shape ─────────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/InterviewShape>
+    a sh:NodeShape ;
+    sh:targetClass aakp:Interview ;
+    sh:name "InterviewShape" ;
+
+    sh:property [
+        sh:path     aakp:conductedForTask ;
+        sh:minCount 1 ;
+        sh:class    aakp:Task ;
+        sh:message  "Interview must reference its Task via aakp:conductedForTask." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     aakp:intervieweeName ;
+        sh:minCount 1 ;
+        sh:minLength 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Interview must have an interviewee name." ;
+        sh:severity sh:Violation ;
+    ] .
+
+
+# ─── Gap Shape ───────────────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/GapShape>
+    a sh:NodeShape ;
+    sh:targetClass mat:Gap ;
+    sh:name "GapShape" ;
+
+    sh:property [
+        sh:path     mat:affectsCapability ;
+        sh:minCount 1 ;
+        sh:class    arch:Capability ;
+        sh:message  "Gap must affect at least one Capability via mat:affectsCapability." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     mat:hasTitle ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Gap must have a title." ;
+        sh:severity sh:Warning ;
+    ] ;
+
+    sh:property [
+        sh:path     mat:hasCapabilityArea ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Gap must have a capability area string for heatmap queries." ;
+        sh:severity sh:Warning ;
+    ] .
+
+
+# ─── MaturityScore Shape ─────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/MaturityScoreShape>
+    a sh:NodeShape ;
+    sh:targetClass mat:MaturityScore ;
+    sh:name "MaturityScoreShape" ;
+
+    sh:property [
+        sh:path        mat:hasLevel ;
+        sh:minCount    1 ;
+        sh:datatype    xsd:decimal ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 5.0 ;
+        sh:message     "MaturityScore level must be a decimal between 0.0 and 5.0." ;
+        sh:severity    sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     mat:belongsToCapability ;
+        sh:minCount 1 ;
+        sh:class    arch:Capability ;
+        sh:message  "MaturityScore must link to a Capability." ;
+        sh:severity sh:Violation ;
+    ] .
+
+
+# ─── RoadmapItem Shape ───────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/RoadmapItemShape>
+    a sh:NodeShape ;
+    sh:targetClass mat:RoadmapItem ;
+    sh:name "RoadmapItemShape" ;
+
+    sh:property [
+        sh:path     mat:implementsRecommendation ;
+        sh:minCount 1 ;
+        sh:class    mat:Recommendation ;
+        sh:message  "RoadmapItem must implement a Recommendation." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     mat:partOfRoadmap ;
+        sh:minCount 1 ;
+        sh:class    mat:Roadmap ;
+        sh:message  "RoadmapItem must belong to a Roadmap." ;
+        sh:severity sh:Warning ;
+    ] .
+
+
+# ─── Report Shape ────────────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/ReportShape>
+    a sh:NodeShape ;
+    sh:targetClass aakp:Report ;
+    sh:name "ReportShape" ;
+    sh:description "Report must reference an Assessment and carry a title." ;
+
+    sh:property [
+        sh:path     aakp:generatedFor ;
+        sh:minCount 1 ;
+        sh:message  "Report must reference the Assessment it was generated for." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     aakp:reportTitle ;
+        sh:minCount 1 ;
+        sh:minLength 3 ;
+        sh:datatype xsd:string ;
+        sh:message  "Report must have a title." ;
+        sh:severity sh:Violation ;
+    ] .
+
+
+# ─── Candidate Knowledge Shape (S5-KA-003) ───────────────────────────────────
+# Research Agent'ın önerdiği triples — human approval öncesi staging graph'ta
+
+<https://aakp.ai/shapes/CandidateKnowledgeShape>
+    a sh:NodeShape ;
+    sh:targetSubjectsOf aakp:candidateStatus ;
+    sh:name "CandidateKnowledgeShape" ;
+    sh:description "Any triple in the candidate graph must carry approval metadata." ;
+
+    sh:property [
+        sh:path     aakp:candidateStatus ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:in       ( "pending" "approved" "rejected" ) ;
+        sh:message  "Candidate knowledge must have status: pending | approved | rejected." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     aakp:proposedBy ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Candidate knowledge must record which agent proposed it." ;
+        sh:severity sh:Warning ;
+    ] .
