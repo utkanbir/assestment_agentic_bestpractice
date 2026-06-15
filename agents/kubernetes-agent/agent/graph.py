@@ -11,6 +11,7 @@ from agent.nodes import (
     answer_processor,
     question_advisor,
     evidence_capture,
+    similar_findings_fetcher,
     finding_detector,
     kg_writer,
     risk_reasoner,
@@ -20,10 +21,10 @@ from agent.nodes import (
 
 
 def _route_after_evidence(state: KubernetesAgentState) -> str:
-    """S2-AA-003: skip finding_detector when no evidence was captured."""
+    """S2-AA-003: skip finding_detector when no evidence was captured.
+    S2-AA-005: route through similar_findings_fetcher before finding_detector."""
     if state.get("evidence_captured"):
-        return "finding_detector"
-    # No evidence this turn — check if we've hit the answer limit anyway
+        return "similar_findings_fetcher"
     if state.get("answer_count", 0) >= 8:
         return "kg_writer"
     return "question_advisor"
@@ -56,6 +57,7 @@ def build_graph(checkpointer):
     builder.add_node("question_advisor", partial(question_advisor, llm=llm))
     builder.add_node("answer_processor", answer_processor)
     builder.add_node("evidence_capture", partial(evidence_capture, llm=llm))
+    builder.add_node("similar_findings_fetcher", similar_findings_fetcher)
     builder.add_node("finding_detector", partial(finding_detector, llm=llm))
     builder.add_node("kg_writer", kg_writer)
     builder.add_node("risk_reasoner", partial(risk_reasoner, llm=llm))
@@ -70,16 +72,18 @@ def build_graph(checkpointer):
     builder.add_edge("question_advisor", "answer_processor")
     builder.add_edge("answer_processor", "evidence_capture")
 
-    # S2-AA-003: guard — only enter finding_detector if evidence was captured
+    # S2-AA-003: guard — only enter similar_findings_fetcher if evidence was captured
+    # S2-AA-005: similar_findings_fetcher always leads to finding_detector
     builder.add_conditional_edges(
         "evidence_capture",
         _route_after_evidence,
         {
-            "finding_detector": "finding_detector",
+            "similar_findings_fetcher": "similar_findings_fetcher",
             "question_advisor": "question_advisor",
             "kg_writer": "kg_writer",
         },
     )
+    builder.add_edge("similar_findings_fetcher", "finding_detector")
 
     builder.add_conditional_edges(
         "finding_detector",

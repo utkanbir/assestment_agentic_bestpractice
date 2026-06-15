@@ -33,6 +33,9 @@ class KubernetesAgentState(TypedDict):
     approved_finding_ids: list[str]
     evidence_captured: bool         # S2-AA-003: set by evidence_capture, guards finding_detector
 
+    # S2-AA-005: similar past findings from Qdrant (set by similar_findings_fetcher)
+    similar_findings: list[dict]
+
     # S2-AA-001: risks derived from approved findings
     generated_risks: list[dict]
 
