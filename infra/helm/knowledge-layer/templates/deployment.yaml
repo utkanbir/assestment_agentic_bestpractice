@@ -21,6 +21,8 @@ spec:
         - name: fuseki
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsUser: 0
           env:
             - name: ADMIN_PASSWORD
               valueFrom:
