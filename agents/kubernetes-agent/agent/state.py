@@ -31,6 +31,7 @@ class KubernetesAgentState(TypedDict):
     should_end_interview: bool
     human_approval_required: bool
     approved_finding_ids: list[str]
+    evidence_captured: bool         # S2-AA-003: set by evidence_capture, guards finding_detector
 
     # S2-AA-001: risks derived from approved findings
     generated_risks: list[dict]

@@ -13,7 +13,10 @@ async def evidence_capture(state: KubernetesAgentState, llm) -> dict:
     question = state.get("current_question", "")
 
     if not answer.strip():
-        return {"pending_evidence": state.get("pending_evidence", [])}
+        return {
+            "pending_evidence": state.get("pending_evidence", []),
+            "evidence_captured": False,
+        }
 
     messages = [
         SystemMessage(content=_SYSTEM),
@@ -32,9 +35,16 @@ async def evidence_capture(state: KubernetesAgentState, llm) -> dict:
             "evidence_type": "interview",
         }
 
+    # Reject evidence with no substantive content
+    if not evidence_data.get("content", "").strip():
+        return {
+            "pending_evidence": state.get("pending_evidence", []),
+            "evidence_captured": False,
+        }
+
     evidence_data["interview_id"] = state.get("interview_id")
 
     pending = list(state.get("pending_evidence", []))
     pending.append(evidence_data)
 
-    return {"pending_evidence": pending}
+    return {"pending_evidence": pending, "evidence_captured": True}

@@ -19,6 +19,16 @@ from agent.nodes import (
 )
 
 
+def _route_after_evidence(state: KubernetesAgentState) -> str:
+    """S2-AA-003: skip finding_detector when no evidence was captured."""
+    if state.get("evidence_captured"):
+        return "finding_detector"
+    # No evidence this turn — check if we've hit the answer limit anyway
+    if state.get("answer_count", 0) >= 8:
+        return "kg_writer"
+    return "question_advisor"
+
+
 def _route_after_finding(state: KubernetesAgentState) -> str:
     if state.get("should_end_interview"):
         return "kg_writer"
@@ -59,7 +69,17 @@ def build_graph(checkpointer):
     # After question_advisor, graph pauses for human input (interrupt_before=["answer_processor"])
     builder.add_edge("question_advisor", "answer_processor")
     builder.add_edge("answer_processor", "evidence_capture")
-    builder.add_edge("evidence_capture", "finding_detector")
+
+    # S2-AA-003: guard — only enter finding_detector if evidence was captured
+    builder.add_conditional_edges(
+        "evidence_capture",
+        _route_after_evidence,
+        {
+            "finding_detector": "finding_detector",
+            "question_advisor": "question_advisor",
+            "kg_writer": "kg_writer",
+        },
+    )
 
     builder.add_conditional_edges(
         "finding_detector",
