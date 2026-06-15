@@ -1,15 +1,25 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import assessments, health, interviews, knowledge, risks, tasks, ws
+from app.routers import assessments, health, interviews, knowledge, qdrant, risks, tasks, ws
 from app.routers.findings import evidence_router, finding_router
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Ensure Qdrant collections exist (idempotent)
+    try:
+        from app.services.qdrant_client import ensure_collections
+        await asyncio.get_event_loop().run_in_executor(None, ensure_collections)
+    except Exception as exc:
+        logger.warning("Qdrant collection bootstrap failed (non-fatal): %s", exc)
     yield
 
 
@@ -29,5 +39,6 @@ app.include_router(interviews.router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
 app.include_router(finding_router, prefix="/api/v1")
 app.include_router(risks.router, prefix="/api/v1")
+app.include_router(qdrant.router, prefix="/api/v1")
 app.include_router(ws.router)
 app.include_router(knowledge.router, prefix="/api/v1")

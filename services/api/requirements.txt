@@ -11,3 +11,4 @@ websockets==14.1
 aiokafka==0.11.0
 SPARQLWrapper==2.0.0
 redis==5.2.1
+qdrant-client[fastembed]==1.12.1
