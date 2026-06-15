@@ -12,6 +12,7 @@ PREFIX arch: <https://aakp.ai/ontology/architecture#>
 PREFIX org:  <https://aakp.ai/ontology/organization#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+PREFIX sh:   <http://www.w3.org/ns/shacl#>
 """
 
 _DATA_NS = "https://aakp.ai/data"
@@ -322,6 +323,121 @@ ORDER BY DESC(?confidence)
                 results[rule_file.stem] = f"error: {e}"
         return results
 
+
+    # ── Assessment-scoped named graphs (S2-KA-010) ───────────────────────────
+
+    def _assessment_graph(self, assessment_id: uuid.UUID) -> str:
+        """Named graph URI scoped to a single assessment for versioning."""
+        return f"https://aakp.ai/graph/assessment/{assessment_id}"
+
+    async def list_assessment_graphs(self) -> list[str]:
+        """Return all per-assessment named graph URIs currently in Fuseki."""
+        result = await self.query("""
+SELECT DISTINCT ?g
+WHERE {
+  GRAPH ?g { ?s ?p ?o }
+  FILTER(STRSTARTS(STR(?g), "https://aakp.ai/graph/assessment/"))
+}
+ORDER BY ?g
+""")
+        return [
+            b["g"]["value"]
+            for b in result.get("results", {}).get("bindings", [])
+        ]
+
+    async def copy_to_assessment_graph(self, assessment_id: uuid.UUID) -> str:
+        """Copy all triples for an assessment from the shared graph into a
+        per-assessment versioned named graph.
+
+        Pattern:
+          global  graph:assessment     — shared, live, all assessments
+          scoped  graph:assessment/<id> — snapshot for this assessment only
+
+        After copy the scoped graph can be exported, archived, or diffed.
+        """
+        src = "<https://aakp.ai/graph/assessment>"
+        assessment_uri = str(_assessment_uri(assessment_id))
+        dst = self._assessment_graph(assessment_id)
+
+        await self.update(f"""
+ADD GRAPH {src} TO GRAPH <{dst}> ;
+
+DELETE {{
+  GRAPH <{dst}> {{
+    ?s ?p ?o
+  }}
+}}
+WHERE {{
+  GRAPH <{dst}> {{
+    ?s ?p ?o
+    FILTER NOT EXISTS {{
+      {{
+        ?s aakp:pgId "{assessment_id}" .
+      }} UNION {{
+        ?s aakp:belongsToAssessment <{assessment_uri}> .
+      }} UNION {{
+        ?s aakp:identifiedInTask ?task .
+        <{assessment_uri}> aakp:hasTask ?task .
+      }}
+    }}
+  }}
+}}
+""")
+        return dst
+
+    async def drop_assessment_graph(self, assessment_id: uuid.UUID) -> None:
+        """Remove the per-assessment versioned named graph."""
+        dst = self._assessment_graph(assessment_id)
+        await self.update(f"DROP SILENT GRAPH <{dst}>")
+
+    # ── Capability → Gap → Risk chain (S2-KA-009) ───────────────────────────
+
+    async def get_capability_gap_risk_chain(
+        self, capability_uri: str | None = None
+    ) -> list[dict]:
+        """Traverse Capability -> Gap -> Risk -> Finding chain across named graphs."""
+        filter_clause = (
+            f"FILTER(?capability = <{capability_uri}>)" if capability_uri else ""
+        )
+        result = await self.query(f"""
+SELECT ?capability ?capabilityName
+       ?gap ?gapTitle ?capabilityArea ?inferredConfidence
+       ?risk ?riskTitle ?riskSeverity ?riskImpact
+       ?finding ?findingDesc ?findingConfidence
+WHERE {{
+  GRAPH <https://aakp.ai/graph/architecture> {{
+    ?capability a arch:Capability .
+    OPTIONAL {{ ?capability arch:hasName ?capabilityName }}
+  }}
+  {filter_clause}
+
+  GRAPH <https://aakp.ai/graph/maturity> {{
+    ?gap a mat:Gap ;
+         mat:affectsCapability ?capability .
+    OPTIONAL {{ ?gap mat:hasTitle           ?gapTitle }}
+    OPTIONAL {{ ?gap mat:hasCapabilityArea  ?capabilityArea }}
+    OPTIONAL {{ ?gap mat:inferredConfidence ?inferredConfidence }}
+
+    OPTIONAL {{
+      ?risk a mat:Risk ;
+            mat:causedByGap ?gap .
+      OPTIONAL {{ ?risk mat:hasTitle         ?riskTitle }}
+      OPTIONAL {{ ?risk mat:hasSeverityValue ?riskSeverity }}
+      OPTIONAL {{ ?risk mat:hasImpact        ?riskImpact }}
+
+      OPTIONAL {{
+        ?risk mat:derivedFromFinding ?finding .
+        GRAPH <https://aakp.ai/graph/assessment> {{
+          OPTIONAL {{ ?finding aakp:description   ?findingDesc }}
+          OPTIONAL {{ ?finding aakp:hasConfidence ?findingConfidence }}
+        }}
+      }}
+    }}
+  }}
+}}
+ORDER BY ?capability ?inferredConfidence DESC(?findingConfidence)
+""")
+        return result.get("results", {}).get("bindings", [])
 
     # ── SHACL Validation (S2-KA-002) ─────────────────────────────────────────
 

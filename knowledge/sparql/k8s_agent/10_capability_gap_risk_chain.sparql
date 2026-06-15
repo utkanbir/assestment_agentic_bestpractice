@@ -1,0 +1,51 @@
+# S2-KA-009: Capability -> Gap -> Risk zinciri
+#
+# Bir capability'den başlayarak, o capability'deki gap'leri ve
+# o gap'lerden türeyen risk'leri traverse eder.
+# Opsiyonel: ?capabilityUri parametre olarak verilirse filtreler,
+# verilmezse tüm zinciri döner.
+#
+# Kullanım:
+#   - /api/v1/knowledge/chain/capability-gap-risk?capability_uri=<URI>
+#   - veya tüm zincir için URI parametresiz çağır
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?capability ?capabilityName
+       ?gap ?gapTitle ?capabilityArea ?inferredConfidence
+       ?risk ?riskTitle ?riskSeverity ?riskImpact
+       ?finding ?findingDesc ?findingConfidence
+WHERE {
+  GRAPH <https://aakp.ai/graph/architecture> {
+    ?capability a arch:Capability .
+    OPTIONAL { ?capability arch:hasName ?capabilityName }
+  }
+
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?gap a mat:Gap ;
+         mat:affectsCapability ?capability .
+    OPTIONAL { ?gap mat:hasTitle           ?gapTitle }
+    OPTIONAL { ?gap mat:hasCapabilityArea  ?capabilityArea }
+    OPTIONAL { ?gap mat:inferredConfidence ?inferredConfidence }
+
+    OPTIONAL {
+      ?risk a mat:Risk ;
+            mat:causedByGap ?gap .
+      OPTIONAL { ?risk mat:hasTitle        ?riskTitle }
+      OPTIONAL { ?risk mat:hasSeverityValue ?riskSeverity }
+      OPTIONAL { ?risk mat:hasImpact        ?riskImpact }
+
+      OPTIONAL {
+        ?risk mat:derivedFromFinding ?finding .
+        GRAPH <https://aakp.ai/graph/assessment> {
+          OPTIONAL { ?finding aakp:description   ?findingDesc }
+          OPTIONAL { ?finding aakp:hasConfidence ?findingConfidence }
+        }
+      }
+    }
+  }
+}
+ORDER BY ?capability ?inferredConfidence DESC(?findingConfidence)
