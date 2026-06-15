@@ -20,13 +20,13 @@ Write-Step "Setting up port-forwards"
 $fusekiJob = Start-Job -ScriptBlock {
     kubectl port-forward svc/aakp-fuseki -n aakp-knowledge 3030:3030 2>$null
 }
-# Port-forward PostgreSQL (background)
+# Port-forward PostgreSQL on 5433 (5432 may be taken by local PG)
 $pgJob = Start-Job -ScriptBlock {
-    kubectl port-forward svc/aakp-postgresql -n aakp-information 5432:5432 2>$null
+    kubectl port-forward svc/aakp-postgresql -n aakp-information 5433:5432 2>$null
 }
 
 Start-Sleep -Seconds 3
-Write-Host "Port-forwards started (Fuseki:3030, PG:5432)" -ForegroundColor Gray
+Write-Host "Port-forwards started (Fuseki:3030, PG:5433)" -ForegroundColor Gray
 
 Write-Step "Installing test dependencies"
 pip install -q -r "$Root\tests\requirements.txt"

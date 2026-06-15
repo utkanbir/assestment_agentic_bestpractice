@@ -15,7 +15,7 @@ import pytest
 API_BASE   = os.getenv("API_BASE",   "http://localhost:30080/api/v1")
 FUSEKI_URL = os.getenv("FUSEKI_URL", "http://localhost:3030")
 FUSEKI_DS  = os.getenv("FUSEKI_DS",  "aakp")
-PG_DSN     = os.getenv("PG_DSN",     "postgresql://aakp:aakp-pg-secret@localhost:5432/aakp")
+PG_DSN     = os.getenv("PG_DSN",     "postgresql://aakp:aakp-pg-secret@localhost:5433/aakp")
 WS_BASE    = os.getenv("WS_BASE",    "ws://localhost:30080/ws")
 
 
