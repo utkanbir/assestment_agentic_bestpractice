@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.finding import Risk
-from app.schemas.risk import RiskCreate, RiskOut
+from app.schemas.risk import RiskCreate, RiskOut, RiskUpdate
 from app.services import kg_writer
 
 router = APIRouter(prefix="/risks", tags=["risks"])
@@ -45,4 +45,16 @@ async def get_risk(risk_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     risk = await db.get(Risk, risk_id)
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+    return risk
+
+
+@router.patch("/{risk_id}", response_model=RiskOut)
+async def update_risk(risk_id: uuid.UUID, body: RiskUpdate, db: AsyncSession = Depends(get_db)):
+    risk = await db.get(Risk, risk_id)
+    if not risk:
+        raise HTTPException(status_code=404, detail="Risk not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(risk, field, value)
+    await db.commit()
+    await db.refresh(risk)
     return risk

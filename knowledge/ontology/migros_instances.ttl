@@ -1,0 +1,192 @@
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix aakp: <https://aakp.ai/ontology/assessment#> .
+@prefix arch: <https://aakp.ai/ontology/architecture#> .
+@prefix mat:  <https://aakp.ai/ontology/maturity#> .
+@prefix d:    <https://aakp.ai/data/> .
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AAKP ABox — Migros Ticaret A.Ş. Assessment Instance Data
+# S3-KA-002: Migros-specific instances
+# S3-KA-003: System individuals (Teradata, NiFi, Kubernetes, DataStage, ...)
+# Named graph: https://aakp.ai/graph/architecture
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ─── System Individuals (S3-KA-003) ────────────────────────────────────────
+
+d:system/teradata-vantage
+    a arch:DataWarehouse ;
+    arch:hasName        "Teradata Vantage" ;
+    arch:hasTechnology  "Teradata" ;
+    arch:hasVersion     "17.x" ;
+    arch:isLegacy       true ;
+    arch:hasDescription "Migros kurumsal veri ambarı — tarihsel ve analitik iş yükleri" .
+
+d:system/datastage
+    a arch:DataIngestion ;
+    arch:hasName        "IBM DataStage" ;
+    arch:hasTechnology  "DataStage" ;
+    arch:hasVersion     "11.7" ;
+    arch:isLegacy       true ;
+    arch:hasDescription "Mevcut ETL motoru — Teradata beslemesi" .
+
+d:system/nifi
+    a arch:DataIngestion ;
+    arch:hasName        "Apache NiFi" ;
+    arch:hasTechnology  "NiFi" ;
+    arch:hasVersion     "1.x" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Modern veri akış platformu — gerçek zamanlı ve batch ingestion" .
+
+d:system/kafka
+    a arch:StreamingSystem ;
+    arch:hasName        "Apache Kafka" ;
+    arch:hasTechnology  "Kafka" ;
+    arch:hasVersion     "3.x" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Event streaming platformu — gerçek zamanlı veri akışı" .
+
+d:system/kubernetes
+    a arch:DataPlatform ;
+    arch:hasName        "Kubernetes" ;
+    arch:hasTechnology  "Kubernetes" ;
+    arch:hasVersion     "1.28+" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Container orkestrasyon platformu — AAKP ve veri servisleri" .
+
+d:system/databricks
+    a arch:DataPlatform ;
+    arch:hasName        "Databricks Lakehouse" ;
+    arch:hasTechnology  "Databricks" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Lakehouse platformu — Delta Lake üzerine SQL analytics ve ML" .
+
+d:system/openmetadata
+    a arch:DataGovernance ;
+    arch:hasName        "OpenMetadata" ;
+    arch:hasTechnology  "OpenMetadata" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Veri kataloğu ve yönetişim platformu" .
+
+d:system/powerbi
+    a arch:DataVisualization ;
+    arch:hasName        "Microsoft Power BI" ;
+    arch:hasTechnology  "PowerBI" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Self-serve BI ve raporlama platformu" .
+
+d:system/salesforce-cdp
+    a arch:DataPlatform ;
+    arch:hasName        "Salesforce CDP" ;
+    arch:hasTechnology  "Salesforce" ;
+    arch:isLegacy       false ;
+    arch:hasDescription "Müşteri veri platformu — kimlik çözümleme ve segment aktivasyonu" .
+
+# ─── Capability Individuals (S3-KA-002) ────────────────────────────────────
+
+d:capability/data-ingestion
+    a arch:Capability ;
+    arch:hasName        "Data Ingestion" ;
+    arch:hasDescription "Kaynak sistemlerden veri toplama ve iletme kapasitesi" ;
+    arch:supportedBySystem d:system/nifi, d:system/datastage, d:system/kafka .
+
+d:capability/data-warehouse
+    a arch:Capability ;
+    arch:hasName        "Data Warehouse" ;
+    arch:hasDescription "Kurumsal veri ambarı ve analitik sorgu kapasitesi" ;
+    arch:supportedBySystem d:system/teradata-vantage .
+
+d:capability/lakehouse
+    a arch:Capability ;
+    arch:hasName        "Data Lakehouse" ;
+    arch:hasDescription "Açık format üzerinde unified batch/streaming analytics" ;
+    arch:supportedBySystem d:system/databricks .
+
+d:capability/data-governance
+    a arch:Capability ;
+    arch:hasName        "Data Governance" ;
+    arch:hasDescription "Veri sahipliği, kalitesi, lineage ve politika yönetimi" ;
+    arch:supportedBySystem d:system/openmetadata .
+
+d:capability/container-platform
+    a arch:Capability ;
+    arch:hasName        "Container Platform" ;
+    arch:hasDescription "Uygulama konteynerizasyon ve orkestrasyon kapasitesi" ;
+    arch:supportedBySystem d:system/kubernetes .
+
+d:capability/customer-data-platform
+    a arch:Capability ;
+    arch:hasName        "Customer Data Platform" ;
+    arch:hasDescription "Müşteri profili birleştirme, segmentasyon ve kanal aktivasyonu" ;
+    arch:supportedBySystem d:system/salesforce-cdp .
+
+d:capability/self-serve-analytics
+    a arch:Capability ;
+    arch:hasName        "Self-Serve Analytics" ;
+    arch:hasDescription "İş kullanıcılarının bağımsız veri analizi kapasitesi" ;
+    arch:supportedBySystem d:system/powerbi .
+
+d:capability/cloud-strategy
+    a arch:Capability ;
+    arch:hasName        "Cloud Strategy" ;
+    arch:hasDescription "Kurumun cloud dönüşüm vizyonu ve uygulama kapasitesi" .
+
+# ─── System Data Flows (S3-KA-002) ─────────────────────────────────────────
+
+d:flow/datastage-to-teradata
+    a arch:DataFlow ;
+    arch:sourceSystem d:system/datastage ;
+    arch:targetSystem d:system/teradata-vantage ;
+    arch:hasName      "DataStage → Teradata ETL" .
+
+d:flow/nifi-to-kafka
+    a arch:DataFlow ;
+    arch:sourceSystem d:system/nifi ;
+    arch:targetSystem d:system/kafka ;
+    arch:hasName      "NiFi → Kafka Streaming" .
+
+d:flow/kafka-to-databricks
+    a arch:DataFlow ;
+    arch:sourceSystem d:system/kafka ;
+    arch:targetSystem d:system/databricks ;
+    arch:hasName      "Kafka → Databricks Structured Streaming" .
+
+d:flow/teradata-to-databricks
+    a arch:DataFlow ;
+    arch:sourceSystem d:system/teradata-vantage ;
+    arch:targetSystem d:system/databricks ;
+    arch:hasName      "Teradata → Databricks Migration Path" .
+
+# ─── Maturity Gap Stubs (S3-KA-002) ─────────────────────────────────────────
+# Initial gap individuals — inferredConfidence populated by Rule 5 after interviews
+
+d:gap/ingestion-realtime
+    a mat:Gap ;
+    mat:hasTitle          "Gerçek Zamanlı Ingestion Olgunluğu" ;
+    mat:hasCapabilityArea "ingestion" ;
+    mat:affectsCapability d:capability/data-ingestion .
+
+d:gap/dr-coverage
+    a mat:Gap ;
+    mat:hasTitle          "Teradata DR Kapsamı" ;
+    mat:hasCapabilityArea "teradata_dr" ;
+    mat:affectsCapability d:capability/data-warehouse .
+
+d:gap/lakehouse-governance
+    a mat:Gap ;
+    mat:hasTitle          "Lakehouse Yönetişim Olgunluğu" ;
+    mat:hasCapabilityArea "lakehouse" ;
+    mat:affectsCapability d:capability/lakehouse .
+
+d:gap/catalog-adoption
+    a mat:Gap ;
+    mat:hasTitle          "Veri Kataloğu Benimseme Oranı" ;
+    mat:hasCapabilityArea "governance" ;
+    mat:affectsCapability d:capability/data-governance .
+
+d:gap/cdp-identity-resolution
+    a mat:Gap ;
+    mat:hasTitle          "CDP Kimlik Çözümleme Kalitesi" ;
+    mat:hasCapabilityArea "cdp" ;
+    mat:affectsCapability d:capability/customer-data-platform .

@@ -1,0 +1,328 @@
+# Workstream Assessment Agents — aakp-agent namespace
+# S3-AA-001..007: 7 workstream agents sharing one Docker image (aakp/workstream-agent)
+# Each Deployment sets WORKSTREAM env var; kafka_group_id is derived dynamically.
+#
+# Secret (shared with k8s-agent):
+#   kubectl create secret generic aakp-k8s-agent-secret -n aakp-agent \
+#     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+# (already exists from Sprint 1 — no recreate needed)
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-workstream-agent-config
+  namespace: aakp-agent
+  labels:
+    app.kubernetes.io/part-of: aakp
+data:
+  ANTHROPIC_MODEL: "claude-sonnet-4-6"
+  API_BASE_URL: "http://aakp-api.aakp-information.svc.cluster.local:8000"
+  FUSEKI_URL: "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
+  FUSEKI_DATASET: "aakp"
+  FUSEKI_USER: "admin"
+  FUSEKI_PASSWORD: "aakp-fuseki-secret"
+  KAFKA_BOOTSTRAP: "aakp-kafka.aakp-data.svc.cluster.local:9092"
+  POSTGRES_URL: "postgresql://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/aakp"
+  WS_BASE_URL: "ws://aakp-api.aakp-information.svc.cluster.local:8000"
+
+# ─── S3-AA-001: Cloud Strategy Agent ────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-cloud-strategy-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-cloud-strategy-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: cloud_strategy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-cloud-strategy-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-cloud-strategy-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa001
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "cloud_strategy"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+
+# ─── S3-AA-002: Ingestion Agent ─────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-ingestion-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-ingestion-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-ingestion-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-ingestion-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa002
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "ingestion"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+
+# ─── S3-AA-003: Teradata DR Agent ───────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-teradata-dr-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-teradata-dr-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: teradata_dr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-teradata-dr-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-teradata-dr-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa003
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "teradata_dr"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+
+# ─── S3-AA-004: Lakehouse Agent ─────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-lakehouse-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-lakehouse-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: lakehouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-lakehouse-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-lakehouse-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa004
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "lakehouse"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+
+# ─── S3-AA-005: Governance Agent ────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-governance-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-governance-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: governance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-governance-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-governance-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa005
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "governance"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+
+# ─── S3-AA-006: Data Product Agent ──────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-data-product-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-data-product-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: data_product
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-data-product-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-data-product-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa006
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "data_product"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m
+
+# ─── S3-AA-007: CDP Agent ───────────────────────────────────────────────────
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-cdp-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-cdp-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: cdp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-cdp-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-cdp-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: agent
+          image: aakp/workstream-agent:sprint3-aa007
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKSTREAM
+              value: "cdp"
+          envFrom:
+            - configMapRef:
+                name: aakp-workstream-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m

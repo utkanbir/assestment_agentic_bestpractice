@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.models.finding import Evidence, Finding
 from app.schemas.finding import EvidenceCreate, EvidenceOut, FindingCreate, FindingOut, FindingUpdate
 from app.services import kg_writer
+from app.services import openmetadata_client as om
 
 router = APIRouter(tags=["findings"])
 
@@ -63,6 +64,13 @@ async def create_finding(
         kg_writer.write_finding,
         finding.id, finding.task_id, finding.evidence_id,
         finding.description, finding.severity, finding.confidence,
+    )
+    # S3-BA-002: publish finding entity to OpenMetadata catalog (non-fatal)
+    background_tasks.add_task(
+        om.create_finding_entity,
+        finding.id, finding.description, finding.severity, finding.confidence,
+        getattr(finding, "workstream", "unknown"),
+        finding.task_id, finding.evidence_id,
     )
     return finding
 

@@ -1,0 +1,48 @@
+# S3-KA-001: Lakehouse Capability Assessment SPARQL
+# Finds lakehouse-related capability, gap, risk triples for assessment context
+# Used by lakehouse agent to pre-populate interview context from KG
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+PREFIX d:    <https://aakp.ai/data/>
+
+SELECT ?capability ?capabilityName
+       ?system ?systemName ?technology
+       ?gap ?gapTitle ?capabilityArea ?inferredConfidence
+       ?risk ?riskTitle ?riskSeverity
+WHERE {
+  # Lakehouse capability from architecture graph
+  GRAPH <https://aakp.ai/graph/architecture> {
+    ?capability a arch:Capability ;
+                arch:hasName ?capabilityName .
+    FILTER(CONTAINS(LCASE(STR(?capabilityName)), "lakehouse") ||
+           CONTAINS(LCASE(STR(?capabilityName)), "lake"))
+
+    OPTIONAL {
+      ?system arch:supportedBySystem ?capability ;
+              arch:hasName ?systemName ;
+              arch:hasTechnology ?technology .
+    }
+  }
+
+  # Gaps linked to lakehouse capability
+  OPTIONAL {
+    GRAPH <https://aakp.ai/graph/maturity> {
+      ?gap a mat:Gap ;
+           mat:affectsCapability ?capability .
+      OPTIONAL { ?gap mat:hasTitle           ?gapTitle }
+      OPTIONAL { ?gap mat:hasCapabilityArea  ?capabilityArea }
+      OPTIONAL { ?gap mat:inferredConfidence ?inferredConfidence }
+
+      # Risks derived from gaps
+      OPTIONAL {
+        ?risk a mat:Risk ;
+              mat:causedByGap ?gap .
+        OPTIONAL { ?risk mat:hasTitle         ?riskTitle }
+        OPTIONAL { ?risk mat:hasSeverityValue ?riskSeverity }
+      }
+    }
+  }
+}
+ORDER BY ?capabilityArea ?inferredConfidence

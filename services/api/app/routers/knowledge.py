@@ -104,3 +104,25 @@ async def validate_shacl(graph_uri: str | None = None):
         return await sparql_client.validate_shacl(graph_uri)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"SHACL validation error: {e}")
+
+
+# ── Agent Registry (S3-AA-008) ────────────────────────────────────────────────
+
+@router.get("/agents")
+async def list_agents():
+    """S3-AA-008: Return all registered assessment agents from graph:agents."""
+    try:
+        return await sparql_client.list_agents()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Fuseki error: {e}")
+
+
+@router.post("/agents/register")
+async def register_agents():
+    """S3-AA-008: (Re-)register all 8 assessment agents into graph:agents.
+    Idempotent — safe to call multiple times.
+    """
+    try:
+        return await sparql_client.register_all_agents()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Fuseki error: {e}")
