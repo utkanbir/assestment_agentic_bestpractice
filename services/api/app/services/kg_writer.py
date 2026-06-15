@@ -100,10 +100,44 @@ async def write_finding(finding_id: uuid.UUID, task_id: uuid.UUID,
         await _store_kg_uri("findings", finding_id, uri)
     except Exception as exc:
         logger.warning("KG write failed for finding %s: %s", finding_id, exc)
+        return
+
+    # S5-KA-002: SHACL validation after KG write (non-blocking, logs violations)
+    try:
+        report = await sparql_client.validate_shacl(
+            graph_uri="https://aakp.ai/graph/assessment"
+        )
+        if not report.get("conforms"):
+            logger.warning(
+                "SHACL violation after finding write %s: %d violations",
+                finding_id, report.get("violations_count", 0)
+            )
+            # Audit the violation
+            await _audit_kg_event("shacl_violation", str(finding_id), {
+                "violations": report.get("violations", [])[:5],
+                "graph": "assessment",
+            })
+    except Exception as exc:
+        logger.debug("SHACL validation skipped (Fuseki unavailable): %s", exc)
+
     # S2-BA-002: embed finding description into Qdrant (sync, run in executor)
     await asyncio.get_event_loop().run_in_executor(
         None, _qdrant_embed_finding, finding_id, description, severity, confidence, task_id
     )
+
+
+async def _audit_kg_event(event_type: str, entity_id: str, detail: dict) -> None:
+    """S5-SA-010: Log every KG mutation to the audit log service (non-fatal)."""
+    try:
+        import httpx
+        from app.core.config import settings
+        await httpx.AsyncClient().post(
+            f"{settings.audit_log_url}/events",
+            json={"event_type": event_type, "entity_id": entity_id, "detail": detail},
+            timeout=5,
+        )
+    except Exception:
+        pass
 
 
 async def write_risk(risk_id: uuid.UUID, finding_id: uuid.UUID,
@@ -114,5 +148,10 @@ async def write_risk(risk_id: uuid.UUID, finding_id: uuid.UUID,
             risk_id, finding_id, title, description, severity, impact
         )
         await _store_kg_uri("risks", risk_id, uri)
+        # S5-SA-010: audit KG write
+        await _audit_kg_event("kg_write", str(risk_id), {
+            "graph": "maturity", "entity_type": "Risk",
+            "finding_id": str(finding_id), "severity": severity,
+        })
     except Exception as exc:
         logger.warning("KG write failed for risk %s: %s", risk_id, exc)

@@ -1,0 +1,130 @@
+---
+# S5-SA-001: Keycloak deploy + realm ve client konfigürasyonu
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-keycloak-config
+  namespace: aakp-agent
+data:
+  KC_DB: "postgres"
+  KC_DB_URL: "jdbc:postgresql://aakp-postgresql.aakp-information.svc.cluster.local:5432/keycloak"
+  KC_DB_USERNAME: "aakp"
+  KC_HOSTNAME: "keycloak.aakp.internal"
+  KC_HTTP_ENABLED: "true"
+  KC_PROXY: "edge"
+  KEYCLOAK_ADMIN: "admin"
+  # Realm bootstrap: aakp realm + clients created via init job below
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aakp-keycloak-secret
+  namespace: aakp-agent
+type: Opaque
+stringData:
+  KC_DB_PASSWORD: "aakp-pg-secret"
+  KEYCLOAK_ADMIN_PASSWORD: "aakp-keycloak-admin"
+  CLIENT_SECRET_API: "aakp-api-client-secret"
+  CLIENT_SECRET_MCP: "aakp-mcp-client-secret"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-keycloak
+  namespace: aakp-agent
+  labels:
+    app: aakp-keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-keycloak
+  template:
+    metadata:
+      labels:
+        app: aakp-keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:24.0
+          args: ["start-dev"]
+          envFrom:
+            - configMapRef:
+                name: aakp-keycloak-config
+            - secretRef:
+                name: aakp-keycloak-secret
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-keycloak
+  namespace: aakp-agent
+spec:
+  selector:
+    app: aakp-keycloak
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# S5-SA-001: Realm + client bootstrap job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aakp-keycloak-realm-setup
+  namespace: aakp-agent
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: realm-setup
+          image: curlimages/curl:8.5.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Wait for Keycloak
+              until curl -sf http://aakp-keycloak:8080/realms/master > /dev/null; do sleep 5; done
+
+              # Get admin token
+              TOKEN=$(curl -sf -X POST http://aakp-keycloak:8080/realms/master/protocol/openid-connect/token \
+                -d "client_id=admin-cli&grant_type=password&username=admin&password=aakp-keycloak-admin" \
+                | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+
+              # Create aakp realm
+              curl -sf -X POST http://aakp-keycloak:8080/admin/realms \
+                -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+                -d '{"realm":"aakp","enabled":true,"displayName":"AAKP Platform"}'
+
+              # Create api-gateway client (for Kong)
+              curl -sf -X POST http://aakp-keycloak:8080/admin/realms/aakp/clients \
+                -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+                -d '{"clientId":"aakp-api","secret":"aakp-api-client-secret","publicClient":false,"standardFlowEnabled":true,"directAccessGrantsEnabled":true}'
+
+              # Create mcp-server client
+              curl -sf -X POST http://aakp-keycloak:8080/admin/realms/aakp/clients \
+                -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+                -d '{"clientId":"aakp-mcp","secret":"aakp-mcp-client-secret","publicClient":false,"bearerOnly":true}'
+
+              # Create roles: consultant, knowledge-reviewer, admin
+              for ROLE in consultant knowledge-reviewer admin; do
+                curl -sf -X POST http://aakp-keycloak:8080/admin/realms/aakp/roles \
+                  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+                  -d "{\"name\":\"$ROLE\"}"
+              done
+              echo "Keycloak realm setup complete"

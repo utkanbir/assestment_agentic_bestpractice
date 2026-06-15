@@ -1,0 +1,35 @@
+# S5-KA-003: Human onayı sonrası candidate → knowledge graph'a taşı
+# Copilot agent veya knowledge ekibi onayladıktan sonra çalıştırılır
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+
+DELETE {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject ?predicate ?object ;
+                 aakp:candidateStatus ?oldStatus ;
+                 aakp:proposedBy      ?agentId ;
+                 aakp:proposalReason  ?reason .
+    }
+}
+INSERT {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject aakp:candidateStatus "approved" ;
+                 aakp:proposedBy      ?agentId ;
+                 aakp:proposalReason  ?reason .
+    }
+    GRAPH <https://aakp.ai/graph/knowledge> {
+        ?subject ?predicate ?object .
+    }
+}
+WHERE {
+    GRAPH <https://aakp.ai/graph/candidate> {
+        ?subject ?predicate ?object ;
+                 aakp:candidateStatus "pending" ;
+                 aakp:proposedBy      ?agentId ;
+                 aakp:proposalReason  ?reason .
+        FILTER(?predicate != aakp:candidateStatus &&
+               ?predicate != aakp:proposedBy &&
+               ?predicate != aakp:proposalReason)
+    }
+    FILTER(?subject = <%%SUBJECT%%>)
+}

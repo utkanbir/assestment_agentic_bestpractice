@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.finding import Report
 from app.schemas.report import ReportCreate, ReportOut
+from app.services.output_validator import validate_evidence_chain, anonymize_report_pii
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -16,7 +17,24 @@ async def create_report(
     body: ReportCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    report = Report(**body.model_dump())
+    data = body.model_dump()
+
+    # S5-BA-002: evidence chain guard
+    validation = await validate_evidence_chain(str(data.get("assessment_id", "")), db)
+    if not validation["valid"]:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Report blocked: findings without evidence detected",
+                "uncovered_findings": validation["uncovered_findings"],
+            },
+        )
+
+    # S5-BA-003: PII filter on executive_summary field
+    if data.get("executive_summary"):
+        data["executive_summary"] = await anonymize_report_pii(data["executive_summary"])
+
+    report = Report(**data)
     db.add(report)
     await db.commit()
     await db.refresh(report)

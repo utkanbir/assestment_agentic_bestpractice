@@ -1,0 +1,88 @@
+---
+# S5-SA-007/008: Microsoft Presidio — PII detection for document upload + answer input
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-presidio-analyzer
+  namespace: aakp-agent
+  labels:
+    app: aakp-presidio-analyzer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: aakp-presidio-analyzer
+  template:
+    metadata:
+      labels:
+        app: aakp-presidio-analyzer
+    spec:
+      containers:
+        - name: analyzer
+          image: mcr.microsoft.com/presidio-analyzer:latest
+          ports:
+            - containerPort: 5001
+          env:
+            - name: PRESIDIO_SUPPORTED_LANGUAGES
+              value: "tr,en"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-presidio-analyzer
+  namespace: aakp-agent
+spec:
+  selector:
+    app: aakp-presidio-analyzer
+  ports:
+    - port: 5001
+      targetPort: 5001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-presidio-anonymizer
+  namespace: aakp-agent
+  labels:
+    app: aakp-presidio-anonymizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-presidio-anonymizer
+  template:
+    metadata:
+      labels:
+        app: aakp-presidio-anonymizer
+    spec:
+      containers:
+        - name: anonymizer
+          image: mcr.microsoft.com/presidio-anonymizer:latest
+          ports:
+            - containerPort: 5002
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-presidio-anonymizer
+  namespace: aakp-agent
+spec:
+  selector:
+    app: aakp-presidio-anonymizer
+  ports:
+    - port: 5002
+      targetPort: 5002

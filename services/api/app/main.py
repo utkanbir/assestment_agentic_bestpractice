@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import assessments, health, interviews, knowledge, qdrant, question_bank, recommendations, reports, risks, tasks, ws
 from app.routers.findings import evidence_router, finding_router
-from app.routers import orchestrator
+from app.routers import orchestrator, approvals
+from app.middleware.guardrails import PIIGuardrailMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
+app.add_middleware(PIIGuardrailMiddleware)  # S5-BA-001: PII input guardrail
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -64,3 +66,4 @@ app.include_router(qdrant.router, prefix="/api/v1")
 app.include_router(ws.router)
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(orchestrator.router, prefix="/api/v1")
+app.include_router(approvals.router, prefix="/api/v1")

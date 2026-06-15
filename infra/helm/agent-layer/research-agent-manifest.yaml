@@ -1,0 +1,64 @@
+---
+# S5-AA-006/007: Domain Research Agent
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-research-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-research-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-research-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-research-agent
+    spec:
+      containers:
+        - name: research-agent
+          image: aakp/research-agent:sprint5-aa006
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aakp-k8s-agent-secret
+                  key: ANTHROPIC_API_KEY
+            - name: API_BASE_URL
+              value: "http://aakp-api.aakp-information.svc.cluster.local:8000"
+            - name: FUSEKI_URL
+              value: "http://aakp-fuseki.aakp-information.svc.cluster.local:3030"
+            - name: TAVILY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aakp-k8s-agent-secret
+                  key: TAVILY_API_KEY
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-research-agent
+  namespace: aakp-agent
+spec:
+  selector:
+    app: aakp-research-agent
+  ports:
+    - port: 8000
+      targetPort: 8000

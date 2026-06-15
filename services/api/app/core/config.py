@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     fuseki_dataset: str = "aakp"
     qdrant_url: str = "http://aakp-qdrant.aakp-information.svc.cluster.local:6333"
     openmetadata_url: str = "http://aakp-openmetadata.aakp-information.svc.cluster.local:8585"
+    audit_log_url: str = "http://aakp-audit-log.aakp-information.svc.cluster.local:8001"
+    keycloak_url: str = "http://aakp-keycloak.aakp-agent.svc.cluster.local:8080"
+    keycloak_realm: str = "aakp"
+    opa_url: str = "http://aakp-opa.aakp-agent.svc.cluster.local:8181"
+    presidio_analyzer_url: str = "http://aakp-presidio-analyzer.aakp-agent.svc.cluster.local:5001"
+    presidio_anonymizer_url: str = "http://aakp-presidio-anonymizer.aakp-agent.svc.cluster.local:5002"
 
 
 settings = Settings()

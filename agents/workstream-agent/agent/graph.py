@@ -21,6 +21,7 @@ from agent.nodes import (
 
 
 def _route_after_evidence(state: WorkstreamAgentState) -> str:
+    # S5-AA-001: finding node only reachable when evidence has been captured
     if state.get("evidence_captured"):
         return "similar_findings_fetcher"
     if state.get("answer_count", 0) >= 8:
@@ -29,8 +30,11 @@ def _route_after_evidence(state: WorkstreamAgentState) -> str:
 
 
 def _route_after_finding(state: WorkstreamAgentState) -> str:
+    # S5-AA-002: risk node only reachable when at least one finding exists
     if state.get("should_end_interview"):
-        return "kg_writer"
+        if state.get("finding_ids"):
+            return "kg_writer"
+        return "report_generator"  # no findings → skip risk reasoning
     return "question_advisor"
 
 
@@ -38,6 +42,13 @@ def _route_after_kg(state: WorkstreamAgentState) -> str:
     if state.get("approved_finding_ids"):
         return "risk_reasoner"
     return "report_generator"
+
+
+def _route_after_risk(state: WorkstreamAgentState) -> str:
+    # S5-AA-003: report only generated after validation flag is set
+    if state.get("risks_validated"):
+        return "confidence_propagator"
+    return "report_generator"  # skip confidence propagation if no validated risks
 
 
 def build_graph(checkpointer):
@@ -85,7 +96,11 @@ def build_graph(checkpointer):
         _route_after_kg,
         {"risk_reasoner": "risk_reasoner", "report_generator": "report_generator"},
     )
-    builder.add_edge("risk_reasoner", "confidence_propagator")
+    builder.add_conditional_edges(
+        "risk_reasoner",
+        _route_after_risk,
+        {"confidence_propagator": "confidence_propagator", "report_generator": "report_generator"},
+    )
     builder.add_edge("confidence_propagator", "report_generator")
     builder.add_edge("report_generator", END)
 

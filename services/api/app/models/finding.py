@@ -72,6 +72,7 @@ class Risk(UUIDMixin, TimestampMixin, Base):
     level: Mapped[str] = mapped_column(String(50))
     impact: Mapped[str | None] = mapped_column(Text)
     kg_uri: Mapped[str | None] = mapped_column(String(500))
+    approval_status: Mapped[str] = mapped_column(String(50), default="pending")  # S5-BA-005
 
     finding: Mapped["Finding"] = relationship(back_populates="risks")
 
@@ -83,6 +84,7 @@ class Recommendation(UUIDMixin, TimestampMixin, Base):
     description: Mapped[str] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(default=1)
     effort: Mapped[str | None] = mapped_column(String(50))
+    approval_status: Mapped[str] = mapped_column(String(50), default="pending")  # S5-BA-005
 
     finding: Mapped["Finding"] = relationship(back_populates="recommendations")
 
