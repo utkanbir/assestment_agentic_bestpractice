@@ -1,0 +1,114 @@
+# PostgreSQL 16 - official postgres:16-alpine image
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aakp-postgresql-secret
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+type: Opaque
+stringData:
+  POSTGRES_USER: aakp
+  POSTGRES_PASSWORD: aakp-pg-secret
+  POSTGRES_DB: aakp
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-postgresql-init
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+data:
+  init.sql: |
+    CREATE DATABASE langfuse;
+    GRANT ALL PRIVILEGES ON DATABASE langfuse TO aakp;
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aakp-postgresql-data
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-postgresql
+  namespace: aakp-information
+  labels:
+    app: aakp-postgresql
+    app.kubernetes.io/part-of: aakp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-postgresql
+  template:
+    metadata:
+      labels:
+        app: aakp-postgresql
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: postgresql
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: aakp-postgresql-secret
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "aakp", "-d", "aakp"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "aakp", "-d", "aakp"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 125m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: aakp-postgresql-data
+        - name: init
+          configMap:
+            name: aakp-postgresql-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-postgresql
+  namespace: aakp-information
+  labels:
+    app: aakp-postgresql
+    app.kubernetes.io/part-of: aakp
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: aakp-postgresql

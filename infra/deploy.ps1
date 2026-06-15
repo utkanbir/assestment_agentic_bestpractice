@@ -15,11 +15,12 @@ function Write-Info { param([string]$Msg) Write-Host "    $Msg" -ForegroundColor
 
 function Step-Repos {
     Write-Step "Adding Helm repositories"
-    helm repo add bitnami              https://charts.bitnami.com/bitnami
+    helm repo add minio-official       https://charts.min.io/
     helm repo add kong                 https://charts.konghq.com
     helm repo add qdrant               https://qdrant.github.io/qdrant-helm
     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
     helm repo add grafana              https://grafana.github.io/helm-charts
+    helm repo add strimzi              https://strimzi.io/charts/
     helm repo update
     Write-OK "Helm repos ready"
 }
@@ -38,27 +39,21 @@ function Step-RBAC {
 
 function Step-Data {
     Write-Step "Deploying Data Layer (MinIO + Kafka) -> aakp-data"
-    Write-Info "MinIO..."
-    helm upgrade --install aakp-minio bitnami/minio `
+    Write-Info "MinIO (official chart)..."
+    helm upgrade --install aakp-minio minio-official/minio `
         -n aakp-data `
         -f "$InfraDir\helm\data-layer\minio-values.yaml" `
         --wait --timeout 5m
-    Write-Info "Kafka (KRaft)..."
-    helm upgrade --install aakp-kafka bitnami/kafka `
-        -n aakp-data `
-        -f "$InfraDir\helm\data-layer\kafka-values.yaml" `
-        --wait --timeout 10m
+    Write-Info "Kafka (official apache/kafka image)..."
+    kubectl apply -f "$InfraDir\helm\data-layer\kafka-manifest.yaml"
     Write-OK "Data layer deployed"
 }
 
 function Step-Information {
     Write-Step "Deploying Information Layer (PostgreSQL + Qdrant) -> aakp-information"
-    Write-Info "PostgreSQL..."
-    helm upgrade --install aakp-postgresql bitnami/postgresql `
-        -n aakp-information `
-        -f "$InfraDir\helm\information-layer\postgresql-values.yaml" `
-        --wait --timeout 5m
-    Write-Info "Qdrant..."
+    Write-Info "PostgreSQL (official image)..."
+    kubectl apply -f "$InfraDir\helm\information-layer\postgresql-manifest.yaml"
+    Write-Info "Qdrant (official chart)..."
     helm upgrade --install aakp-qdrant qdrant/qdrant `
         -n aakp-information `
         -f "$InfraDir\helm\information-layer\qdrant-values.yaml" `
@@ -76,10 +71,7 @@ function Step-Knowledge {
 
 function Step-Agent {
     Write-Step "Deploying Agent Layer (Redis) -> aakp-agent"
-    helm upgrade --install aakp-redis bitnami/redis `
-        -n aakp-agent `
-        -f "$InfraDir\helm\agent-layer\redis-values.yaml" `
-        --wait --timeout 5m
+    kubectl apply -f "$InfraDir\helm\agent-layer\redis-manifest.yaml"
     Write-OK "Agent layer deployed"
 }
 
@@ -161,4 +153,3 @@ switch ($Action) {
         Write-Host "Usage: .\deploy.ps1 -Action [repos|namespaces|rbac|data|information|knowledge|agent|gateway|monitoring|healthcheck|all]"
     }
 }
-
