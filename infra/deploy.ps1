@@ -1,4 +1,4 @@
-# AAKP — Sprint 0 Deploy Script
+# AAKP - Sprint 0 Deploy Script
 # Run from: infra/ directory
 # Usage: .\deploy.ps1 [-Action <step>]
 # Steps: repos | namespaces | rbac | data | information | knowledge | agent | gateway | monitoring | healthcheck | all
@@ -39,7 +39,7 @@ function Step-RBAC {
 }
 
 function Step-Data {
-    Write-Step "Deploying Data Layer (MinIO + Kafka) → aakp-data"
+    Write-Step "Deploying Data Layer (MinIO + Kafka) -> aakp-data"
     Write-Info "MinIO..."
     helm upgrade --install aakp-minio bitnami/minio `
         -n aakp-data `
@@ -54,7 +54,7 @@ function Step-Data {
 }
 
 function Step-Information {
-    Write-Step "Deploying Information Layer (PostgreSQL + Qdrant) → aakp-information"
+    Write-Step "Deploying Information Layer (PostgreSQL + Qdrant) -> aakp-information"
     Write-Info "PostgreSQL..."
     helm upgrade --install aakp-postgresql bitnami/postgresql `
         -n aakp-information `
@@ -69,7 +69,7 @@ function Step-Information {
 }
 
 function Step-Knowledge {
-    Write-Step "Deploying Knowledge Layer (Apache Jena Fuseki) → aakp-knowledge"
+    Write-Step "Deploying Knowledge Layer (Apache Jena Fuseki) -> aakp-knowledge"
     helm upgrade --install aakp-fuseki "$InfraDir\helm\knowledge-layer" `
         -n aakp-knowledge `
         --wait --timeout 5m
@@ -77,7 +77,7 @@ function Step-Knowledge {
 }
 
 function Step-Agent {
-    Write-Step "Deploying Agent Layer (Redis) → aakp-agent"
+    Write-Step "Deploying Agent Layer (Redis) -> aakp-agent"
     helm upgrade --install aakp-redis bitnami/redis `
         -n aakp-agent `
         -f "$InfraDir\helm\agent-layer\redis-values.yaml" `
@@ -86,7 +86,7 @@ function Step-Agent {
 }
 
 function Step-Gateway {
-    Write-Step "Deploying Kong Gateway → aakp-gateway"
+    Write-Step "Deploying Kong Gateway -> aakp-gateway"
     helm upgrade --install aakp-kong kong/kong `
         -n aakp-gateway `
         -f "$InfraDir\gateway\kong-values.yaml" `
@@ -95,7 +95,7 @@ function Step-Gateway {
 }
 
 function Step-Monitoring {
-    Write-Step "Deploying Monitoring Stack → aakp-monitoring"
+    Write-Step "Deploying Monitoring Stack -> aakp-monitoring"
     Write-Info "Prometheus + Grafana (kube-prometheus-stack)..."
     helm upgrade --install aakp-prometheus prometheus-community/kube-prometheus-stack `
         -n aakp-monitoring `
