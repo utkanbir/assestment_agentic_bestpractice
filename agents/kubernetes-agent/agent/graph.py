@@ -13,6 +13,7 @@ from agent.nodes import (
     evidence_capture,
     finding_detector,
     kg_writer,
+    risk_reasoner,
     report_generator,
 )
 
@@ -24,6 +25,9 @@ def _route_after_finding(state: KubernetesAgentState) -> str:
 
 
 def _route_after_kg(state: KubernetesAgentState) -> str:
+    # Only run risk_reasoner when there are approved findings to process
+    if state.get("approved_finding_ids"):
+        return "risk_reasoner"
     return "report_generator"
 
 
@@ -43,6 +47,7 @@ def build_graph(checkpointer):
     builder.add_node("evidence_capture", partial(evidence_capture, llm=llm))
     builder.add_node("finding_detector", partial(finding_detector, llm=llm))
     builder.add_node("kg_writer", kg_writer)
+    builder.add_node("risk_reasoner", partial(risk_reasoner, llm=llm))
     builder.add_node("report_generator", partial(report_generator, llm=llm))
 
     # Edges
@@ -60,7 +65,12 @@ def build_graph(checkpointer):
         {"kg_writer": "kg_writer", "question_advisor": "question_advisor"},
     )
 
-    builder.add_edge("kg_writer", "report_generator")
+    builder.add_conditional_edges(
+        "kg_writer",
+        _route_after_kg,
+        {"risk_reasoner": "risk_reasoner", "report_generator": "report_generator"},
+    )
+    builder.add_edge("risk_reasoner", "report_generator")
     builder.add_edge("report_generator", END)
 
     return builder.compile(

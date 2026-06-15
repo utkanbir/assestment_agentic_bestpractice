@@ -79,3 +79,15 @@ async def write_finding(finding_id: uuid.UUID, task_id: uuid.UUID,
         await _store_kg_uri("findings", finding_id, uri)
     except Exception as exc:
         logger.warning("KG write failed for finding %s: %s", finding_id, exc)
+
+
+async def write_risk(risk_id: uuid.UUID, finding_id: uuid.UUID,
+                      title: str, description: str,
+                      severity: str, impact: str) -> None:
+    try:
+        uri = await sparql_client.insert_risk(
+            risk_id, finding_id, title, description, severity, impact
+        )
+        await _store_kg_uri("risks", risk_id, uri)
+    except Exception as exc:
+        logger.warning("KG write failed for risk %s: %s", risk_id, exc)

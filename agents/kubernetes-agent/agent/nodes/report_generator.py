@@ -12,11 +12,16 @@ Her bulgu için evidence bağlantısını belirt. Sadece onaylanan bulgular rapo
 
 async def report_generator(state: KubernetesAgentState, llm) -> dict:
     findings = json.dumps(state.get("pending_findings", []), ensure_ascii=False, indent=2)
+    risks = json.dumps(state.get("generated_risks", []), ensure_ascii=False, indent=2)
     scope = state.get("task_scope", "Kubernetes Assessment")
 
     messages = [
         SystemMessage(content=_SYSTEM),
-        SystemMessage(content=f"Kapsam: {scope}\n\nBulgular:\n{findings}"),
+        SystemMessage(content=(
+            f"Kapsam: {scope}\n\n"
+            f"Bulgular:\n{findings}\n\n"
+            f"Türetilen Riskler:\n{risks}"
+        )),
     ]
 
     response = await llm.ainvoke(messages)

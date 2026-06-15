@@ -32,6 +32,9 @@ class KubernetesAgentState(TypedDict):
     human_approval_required: bool
     approved_finding_ids: list[str]
 
+    # S2-AA-001: risks derived from approved findings
+    generated_risks: list[dict]
+
     # Output
     report_markdown: str
     error: str | None
