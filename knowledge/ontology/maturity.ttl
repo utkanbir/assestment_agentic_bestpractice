@@ -9,7 +9,7 @@
     a owl:Ontology ;
     owl:imports <https://aakp.ai/ontology/assessment>, <https://aakp.ai/ontology/architecture> ;
     rdfs:label "AAKP Maturity Ontology" ;
-    owl:versionInfo "0.2" .
+    owl:versionInfo "0.3" .
 
 # ─── Classes ────────────────────────────────────────────────────────────────
 
@@ -21,10 +21,11 @@ mat:Roadmap        a owl:Class ; rdfs:label "Roadmap" .
 mat:RoadmapItem    a owl:Class ; rdfs:label "RoadmapItem" .
 
 mat:Severity  a owl:Class ; rdfs:label "Severity" .
-mat:Critical  a mat:Severity .
-mat:High      a mat:Severity .
-mat:Medium    a mat:Severity .
-mat:Low       a mat:Severity .
+mat:Critical  a mat:Severity ; rdfs:label "critical" .
+mat:High      a mat:Severity ; rdfs:label "high" .
+mat:Medium    a mat:Severity ; rdfs:label "medium" .
+mat:Low       a mat:Severity ; rdfs:label "low" .
+mat:Info      a mat:Severity ; rdfs:label "info" .
 
 mat:Horizon    a owl:Class ; rdfs:label "Horizon" .
 mat:ShortTerm  a mat:Horizon ; rdfs:label "Short Term (0-3 months)" .
@@ -32,10 +33,10 @@ mat:MediumTerm a mat:Horizon ; rdfs:label "Medium Term (3-12 months)" .
 mat:LongTerm   a mat:Horizon ; rdfs:label "Long Term (12+ months)" .
 
 mat:MaturityDimension a owl:Class ; rdfs:label "MaturityDimension" .
-mat:People     a mat:MaturityDimension .
-mat:Process    a mat:MaturityDimension .
-mat:Technology a mat:MaturityDimension .
-mat:Data       a mat:MaturityDimension .
+mat:People     a mat:MaturityDimension ; rdfs:label "People" .
+mat:Process    a mat:MaturityDimension ; rdfs:label "Process" .
+mat:Technology a mat:MaturityDimension ; rdfs:label "Technology" .
+mat:Data       a mat:MaturityDimension ; rdfs:label "Data" .
 
 # ─── Object Properties ───────────────────────────────────────────────────────
 
@@ -55,11 +56,35 @@ mat:hasRoadmapItem       a owl:ObjectProperty ; rdfs:domain mat:Roadmap ; rdfs:r
 mat:partOfRoadmap        a owl:ObjectProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range mat:Roadmap .
 mat:implementsRecommendation a owl:ObjectProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range mat:Recommendation .
 mat:dependsOnItem        a owl:ObjectProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range mat:RoadmapItem .
+
+# Cross-graph: Finding → maturity concepts
 mat:indicatesGap         a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range mat:Gap .
 mat:indicatesRisk        a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range mat:Risk .
 
+# Finding ← Risk (reverse direction for chain traversal)
+mat:derivedFromFinding   a owl:ObjectProperty ; rdfs:domain mat:Risk ; rdfs:range aakp:Finding .
+
 # ─── Datatype Properties ─────────────────────────────────────────────────────
 
-mat:hasLevel         a owl:DatatypeProperty ; rdfs:domain mat:MaturityScore ; rdfs:range xsd:integer .
+# Shared label/description
+mat:hasTitle       a owl:DatatypeProperty ; rdfs:range xsd:string .
+mat:hasDescription a owl:DatatypeProperty ; rdfs:range xsd:string .
+mat:pgId           a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:comment "PostgreSQL UUID bridge" .
+
+# MaturityScore
+mat:hasLevel         a owl:DatatypeProperty ; rdfs:domain mat:MaturityScore ; rdfs:range xsd:decimal ;
+                       rdfs:comment "0.0 (initial) to 5.0 (optimised)" .
 mat:hasJustification a owl:DatatypeProperty ; rdfs:domain mat:MaturityScore ; rdfs:range xsd:string .
-mat:estimatedEffort  a owl:DatatypeProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range xsd:string .
+
+# Risk
+mat:hasSeverityValue a owl:DatatypeProperty ; rdfs:domain mat:Risk ; rdfs:range xsd:string ;
+                       rdfs:comment "String copy of severity for direct querying: critical/high/medium/low" .
+mat:hasImpact        a owl:DatatypeProperty ; rdfs:domain mat:Risk ; rdfs:range xsd:string .
+mat:hasLikelihood    a owl:DatatypeProperty ; rdfs:domain mat:Risk ; rdfs:range xsd:string .
+
+# Gap
+mat:hasCapabilityArea a owl:DatatypeProperty ; rdfs:domain mat:Gap ; rdfs:range xsd:string .
+
+# Recommendation / RoadmapItem
+mat:hasPriorityValue  a owl:DatatypeProperty ; rdfs:range xsd:integer .
+mat:estimatedEffort   a owl:DatatypeProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range xsd:string .

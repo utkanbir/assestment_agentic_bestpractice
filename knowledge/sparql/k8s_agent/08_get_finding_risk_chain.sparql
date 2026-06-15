@@ -1,0 +1,39 @@
+# S2-KA-008: Finding → Gap → Risk chain for a given Task
+# Returns: finding, its gap, the risk derived from that gap, severity, impact
+# Params: ?taskUri
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?finding ?findingDesc ?severity ?gap ?gapTitle ?risk ?riskTitle ?impact ?horizon
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding a aakp:Finding ;
+             aakp:identifiedInTask ?taskUri ;
+             aakp:approvalStatus   "approved" .
+    OPTIONAL { ?finding aakp:description   ?findingDesc }
+    OPTIONAL { ?finding aakp:hasConfidence ?conf }
+  }
+  OPTIONAL {
+    GRAPH <https://aakp.ai/graph/maturity> {
+      ?finding mat:indicatesGap ?gap .
+      OPTIONAL { ?gap mat:hasTitle ?gapTitle }
+    }
+    OPTIONAL {
+      GRAPH <https://aakp.ai/graph/maturity> {
+        ?risk a mat:Risk ;
+              mat:causedByGap ?gap .
+        OPTIONAL { ?risk mat:hasTitle      ?riskTitle }
+        OPTIONAL { ?risk mat:hasImpact     ?impact }
+        OPTIONAL { ?risk mat:hasSeverity   ?sevNode }
+        OPTIONAL { ?risk mat:hasSeverityValue ?severity }
+        OPTIONAL {
+          ?rec mat:mitigatesRisk ?risk ;
+               mat:hasHorizon   ?horizon .
+        }
+      }
+    }
+  }
+}
+ORDER BY DESC(?conf)

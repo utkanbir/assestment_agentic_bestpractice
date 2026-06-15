@@ -7,7 +7,7 @@
 <https://aakp.ai/ontology/assessment>
     a owl:Ontology ;
     rdfs:label "AAKP Assessment Ontology" ;
-    owl:versionInfo "0.2" .
+    owl:versionInfo "0.3" .
 
 # ─── Classes ────────────────────────────────────────────────────────────────
 
@@ -34,8 +34,8 @@ aakp:InProgress  a aakp:AssessmentStatus .
 aakp:UnderReview a aakp:AssessmentStatus .
 aakp:Complete    a aakp:AssessmentStatus .
 
-aakp:TaskStatus     a owl:Class ; rdfs:label "TaskStatus" .
-aakp:NotStarted     a aakp:TaskStatus .
+aakp:TaskStatus       a owl:Class ; rdfs:label "TaskStatus" .
+aakp:NotStarted       a aakp:TaskStatus .
 aakp:FindingsCaptured a aakp:TaskStatus .
 
 aakp:InterviewStatus a owl:Class ; rdfs:label "InterviewStatus" .
@@ -43,13 +43,13 @@ aakp:Scheduled   a aakp:InterviewStatus .
 aakp:Completed   a aakp:InterviewStatus .
 aakp:Cancelled   a aakp:InterviewStatus .
 
-aakp:ReportType      a owl:Class ; rdfs:label "ReportType" .
-aakp:TaskReport      a aakp:ReportType .
-aakp:ExecutiveSummary a aakp:ReportType .
-aakp:RiskHeatmap     a aakp:ReportType .
+aakp:ReportType          a owl:Class ; rdfs:label "ReportType" .
+aakp:TaskReport          a aakp:ReportType .
+aakp:ExecutiveSummary    a aakp:ReportType .
+aakp:RiskHeatmap         a aakp:ReportType .
 aakp:ArchitectureRoadmap a aakp:ReportType .
-aakp:MaturityReport  a aakp:ReportType .
-aakp:GapAnalysis     a aakp:ReportType .
+aakp:MaturityReport      a aakp:ReportType .
+aakp:GapAnalysis         a aakp:ReportType .
 
 aakp:Confidence a owl:Class ; rdfs:label "Confidence" .
 aakp:High   a aakp:Confidence .
@@ -60,33 +60,72 @@ aakp:Priority a owl:Class ; rdfs:label "Priority" .
 
 # ─── Object Properties ───────────────────────────────────────────────────────
 
-aakp:hasTask            a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range aakp:Task .
-aakp:hasFinding         a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range aakp:Finding .
-aakp:hasReport          a owl:ObjectProperty ; rdfs:range aakp:Report .
-aakp:hasStatus          a owl:ObjectProperty .
+aakp:hasTask             a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range aakp:Task .
+aakp:hasFinding          a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range aakp:Finding .
+aakp:hasReport           a owl:ObjectProperty ; rdfs:range aakp:Report .
+aakp:hasStatus           a owl:ObjectProperty .
 aakp:belongsToAssessment a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Assessment .
-aakp:hasInterview       a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Interview .
-aakp:producesFinding    a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Finding .
-aakp:dependsOnTask      a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Task .
-aakp:conductedForTask   a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Task .
-aakp:hasQuestion        a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Question .
-aakp:producesEvidence   a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Evidence .
-aakp:hasAnswer          a owl:ObjectProperty ; rdfs:domain aakp:Question ; rdfs:range aakp:Answer .
-aakp:answersQuestion    a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Question .
-aakp:supportsEvidence   a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Evidence .
-aakp:supportsFinding    a owl:ObjectProperty ; rdfs:domain aakp:Evidence ; rdfs:range aakp:Finding .
+aakp:hasInterview        a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Interview .
+aakp:producesFinding     a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Finding .
+aakp:dependsOnTask       a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Task .
+aakp:conductedForTask    a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Task .
+aakp:hasQuestion         a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Question .
+aakp:producesEvidence    a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Evidence .
+aakp:hasAnswer           a owl:ObjectProperty ; rdfs:domain aakp:Question ; rdfs:range aakp:Answer .
+aakp:answersQuestion     a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Question .
+aakp:supportsEvidence    a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Evidence .
+aakp:supportsFinding     a owl:ObjectProperty ; rdfs:domain aakp:Evidence ; rdfs:range aakp:Finding .
 aakp:supportedByEvidence a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range aakp:Evidence .
-aakp:relatedToFinding   a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range aakp:Finding .
-aakp:hasConfidence      a owl:ObjectProperty ; rdfs:range aakp:Confidence .
-aakp:generatedFor       a owl:ObjectProperty ; rdfs:domain aakp:Report .
-aakp:containsFinding    a owl:ObjectProperty ; rdfs:domain aakp:Report ; rdfs:range aakp:Finding .
+aakp:relatedToFinding    a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range aakp:Finding .
+aakp:generatedFor        a owl:ObjectProperty ; rdfs:domain aakp:Report .
+aakp:containsFinding     a owl:ObjectProperty ; rdfs:domain aakp:Report ; rdfs:range aakp:Finding .
+
+# Used by kg_writer — Finding points back to its Task
+aakp:identifiedInTask    a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range aakp:Task .
+# Used by kg_writer — Evidence points back to its Interview
+aakp:collectedInInterview a owl:ObjectProperty ; rdfs:domain aakp:Evidence ; rdfs:range aakp:Interview .
 
 # ─── Datatype Properties ─────────────────────────────────────────────────────
 
+# Shared
+aakp:hasTitle        a owl:DatatypeProperty ; rdfs:range xsd:string .
+aakp:pgId            a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:comment "PostgreSQL UUID bridge" .
+aakp:hasCreatedAt    a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
+
+# Assessment
+aakp:hasClientName   a owl:DatatypeProperty ; rdfs:domain aakp:Assessment ; rdfs:range xsd:string .
+aakp:hasProjectName  a owl:DatatypeProperty ; rdfs:domain aakp:Assessment ; rdfs:range xsd:string .
+
+# Task
+aakp:hasAgentType    a owl:DatatypeProperty ; rdfs:domain aakp:Task ; rdfs:range xsd:string .
+aakp:hasWorkstream   a owl:DatatypeProperty ; rdfs:domain aakp:Task ; rdfs:range xsd:string .
+aakp:hasScope        a owl:DatatypeProperty ; rdfs:domain aakp:Task ; rdfs:range xsd:string .
+
+# Interview
 aakp:hasSource       a owl:DatatypeProperty ; rdfs:range xsd:string .
 aakp:hasCategory     a owl:DatatypeProperty ; rdfs:range xsd:string .
 aakp:conductedAt     a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
-aakp:capturedAt      a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
 aakp:durationMinutes a owl:DatatypeProperty ; rdfs:range xsd:integer .
-aakp:generatedAt     a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
-aakp:pgId            a owl:DatatypeProperty ; rdfs:range xsd:string ; rdfs:comment "PostgreSQL UUID link" .
+aakp:intervieweeName a owl:DatatypeProperty ; rdfs:domain aakp:Interview ; rdfs:range xsd:string .
+aakp:intervieweeRole a owl:DatatypeProperty ; rdfs:domain aakp:Interview ; rdfs:range xsd:string .
+
+# Question / Answer
+aakp:hasText           a owl:DatatypeProperty ; rdfs:range xsd:string .
+aakp:hasOrder          a owl:DatatypeProperty ; rdfs:domain aakp:Question ; rdfs:range xsd:integer .
+aakp:isAgentSuggested  a owl:DatatypeProperty ; rdfs:domain aakp:Question ; rdfs:range xsd:boolean .
+
+# Evidence
+aakp:content      a owl:DatatypeProperty ; rdfs:domain aakp:Evidence ; rdfs:range xsd:string .
+aakp:capturedAt   a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
+
+# Finding
+aakp:description     a owl:DatatypeProperty ; rdfs:domain aakp:Finding ; rdfs:range xsd:string .
+aakp:hasConfidence   a owl:DatatypeProperty ; rdfs:domain aakp:Finding ; rdfs:range xsd:decimal .
+aakp:approvalStatus  a owl:DatatypeProperty ; rdfs:domain aakp:Finding ; rdfs:range xsd:string .
+aakp:isInvalid       a owl:DatatypeProperty ; rdfs:domain aakp:Finding ; rdfs:range xsd:boolean ;
+                       rdfs:comment "Rule 7: true when no supportedByEvidence exists" .
+
+# Report
+aakp:generatedAt  a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
+aakp:reportTitle  a owl:DatatypeProperty ; rdfs:domain aakp:Report ; rdfs:range xsd:string .
+aakp:executiveSummary a owl:DatatypeProperty ; rdfs:domain aakp:Report ; rdfs:range xsd:string .

@@ -1,0 +1,24 @@
+# Rule 7: Finding with no supportedByEvidence → isInvalid = true
+# Run after every kg_writer call to enforce evidence guardrail.
+# S2-KA-005
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+DELETE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding aakp:isInvalid ?old .
+  }
+}
+INSERT {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding aakp:isInvalid "true"^^xsd:boolean .
+  }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding a aakp:Finding .
+    FILTER NOT EXISTS { ?finding aakp:supportedByEvidence ?ev }
+    OPTIONAL { ?finding aakp:isInvalid ?old }
+  }
+}

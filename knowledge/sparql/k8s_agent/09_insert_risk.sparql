@@ -1,0 +1,20 @@
+# S2-AA-001: Insert a Risk derived from a Finding→Gap chain
+# Params: ?riskUri, ?findingUri, ?gapUri, ?title, ?description, ?severityNode, ?severityValue, ?impact, ?pgId
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+INSERT DATA {
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?riskUri a mat:Risk ;
+             mat:hasTitle         ?title ;
+             mat:hasDescription   ?description ;
+             mat:hasSeverity      ?severityNode ;
+             mat:hasSeverityValue ?severityValue ;
+             mat:hasImpact        ?impact ;
+             mat:causedByGap      ?gapUri ;
+             mat:derivedFromFinding ?findingUri ;
+             mat:pgId             ?pgId .
+  }
+}
