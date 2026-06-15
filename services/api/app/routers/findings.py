@@ -1,12 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.finding import Evidence, Finding
 from app.schemas.finding import EvidenceCreate, EvidenceOut, FindingCreate, FindingOut, FindingUpdate
+from app.services import kg_writer
 
 router = APIRouter(tags=["findings"])
 
@@ -15,11 +16,19 @@ finding_router = APIRouter(prefix="/findings")
 
 
 @evidence_router.post("", response_model=EvidenceOut, status_code=status.HTTP_201_CREATED)
-async def create_evidence(body: EvidenceCreate, db: AsyncSession = Depends(get_db)):
+async def create_evidence(
+    body: EvidenceCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     evidence = Evidence(**body.model_dump())
     db.add(evidence)
     await db.commit()
     await db.refresh(evidence)
+    background_tasks.add_task(
+        kg_writer.write_evidence,
+        evidence.id, evidence.interview_id, evidence.source, evidence.content,
+    )
     return evidence
 
 
@@ -41,11 +50,20 @@ async def list_findings(task_id: uuid.UUID | None = None, db: AsyncSession = Dep
 
 
 @finding_router.post("", response_model=FindingOut, status_code=status.HTTP_201_CREATED)
-async def create_finding(body: FindingCreate, db: AsyncSession = Depends(get_db)):
+async def create_finding(
+    body: FindingCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     finding = Finding(**body.model_dump())
     db.add(finding)
     await db.commit()
     await db.refresh(finding)
+    background_tasks.add_task(
+        kg_writer.write_finding,
+        finding.id, finding.task_id, finding.evidence_id,
+        finding.description, finding.severity, finding.confidence,
+    )
     return finding
 
 

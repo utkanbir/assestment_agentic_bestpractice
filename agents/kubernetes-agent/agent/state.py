@@ -31,6 +31,17 @@ class KubernetesAgentState(TypedDict):
     should_end_interview: bool
     human_approval_required: bool
     approved_finding_ids: list[str]
+    evidence_captured: bool         # S2-AA-003: set by evidence_capture, guards finding_detector
+
+    # S2-AA-005: similar past findings from Qdrant (set by similar_findings_fetcher)
+    similar_findings: list[dict]
+
+    # S2-AA-001: risks derived from approved findings
+    generated_risks: list[dict]
+
+    # S2-AA-002: confidence propagation results
+    inference_results: dict       # rule_name → "ok" | "error: ..."
+    low_confidence_gaps: list[dict]  # gaps below threshold after Rule 5
 
     # Output
     report_markdown: str

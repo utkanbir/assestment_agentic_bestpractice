@@ -67,9 +67,11 @@ class Risk(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "risks"
 
     finding_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("findings.id", ondelete="CASCADE"))
+    title: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str] = mapped_column(Text)
     level: Mapped[str] = mapped_column(String(50))
     impact: Mapped[str | None] = mapped_column(Text)
+    kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     finding: Mapped["Finding"] = relationship(back_populates="risks")
 

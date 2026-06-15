@@ -18,6 +18,20 @@ Bulgu yoksa: {"has_finding": false}
 Bulgu MUTLAKA somut bir teknik gözleme dayanmalı."""
 
 
+def _similar_context(similar_findings: list[dict]) -> str:
+    """Format similar past findings for the LLM prompt."""
+    if not similar_findings:
+        return ""
+    lines = ["\n\nGeçmiş benzer bulgular (Qdrant semantic search — calibrasyon için kullan):"]
+    for i, f in enumerate(similar_findings[:3], 1):
+        score = f.get("score", 0)
+        desc = f.get("description", "")[:120]
+        sev = f.get("severity", "")
+        conf = f.get("confidence", "")
+        lines.append(f"  {i}. [score={score:.2f}] severity={sev} confidence={conf}: {desc}")
+    return "\n".join(lines)
+
+
 async def finding_detector(state: KubernetesAgentState, llm) -> dict:
     answer = state.get("last_answer", "")
     question = state.get("current_question", "")
@@ -27,9 +41,16 @@ async def finding_detector(state: KubernetesAgentState, llm) -> dict:
     if not last_evidence:
         return {}
 
+    similar = state.get("similar_findings", [])
+    similar_ctx = _similar_context(similar)
+
     messages = [
         SystemMessage(content=_SYSTEM),
-        SystemMessage(content=f"Soru: {question}\nCevap: {answer}\nKanıt: {json.dumps(last_evidence, ensure_ascii=False)}"),
+        SystemMessage(content=(
+            f"Soru: {question}\nCevap: {answer}\n"
+            f"Kanıt: {json.dumps(last_evidence, ensure_ascii=False)}"
+            f"{similar_ctx}"
+        )),
     ]
 
     response = await llm.ainvoke(messages)

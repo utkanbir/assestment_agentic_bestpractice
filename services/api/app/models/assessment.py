@@ -35,6 +35,7 @@ class Assessment(UUIDMixin, TimestampMixin, Base):
     project_name: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(50), default="draft")
     description: Mapped[str | None] = mapped_column(Text)
+    kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     tasks: Mapped[list["Task"]] = relationship(back_populates="assessment", cascade="all, delete-orphan")
 
@@ -47,6 +48,7 @@ class Task(UUIDMixin, TimestampMixin, Base):
     workstream: Mapped[str] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(50), default="pending")
     scope: Mapped[str | None] = mapped_column(Text)
+    kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     assessment: Mapped["Assessment"] = relationship(back_populates="tasks")
     interviews: Mapped[list["Interview"]] = relationship(back_populates="task", cascade="all, delete-orphan")
@@ -59,6 +61,7 @@ class Interview(UUIDMixin, TimestampMixin, Base):
     interviewee_name: Mapped[str] = mapped_column(String(255))
     interviewee_role: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(50), default="scheduled")
+    kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     task: Mapped["Task"] = relationship(back_populates="interviews")
     questions: Mapped[list["Question"]] = relationship(back_populates="interview", cascade="all, delete-orphan")

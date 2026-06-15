@@ -1,0 +1,38 @@
+# Rule 5: Propagate max confidence from related findings to Gap.
+# If multiple Findings indicate the same Gap, the Gap inherits the highest confidence.
+# S2-KA-004
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+DELETE {
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?gap mat:inferredConfidence ?old .
+  }
+}
+INSERT {
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?gap mat:inferredConfidence ?maxConf .
+  }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?gap a mat:Gap .
+    OPTIONAL { ?gap mat:inferredConfidence ?old }
+  }
+  {
+    SELECT ?gap (MAX(?conf) AS ?maxConf)
+    WHERE {
+      GRAPH <https://aakp.ai/graph/assessment> {
+        ?finding a aakp:Finding ;
+                 aakp:hasConfidence ?conf ;
+                 aakp:approvalStatus "approved" .
+      }
+      GRAPH <https://aakp.ai/graph/maturity> {
+        ?finding mat:indicatesGap ?gap .
+      }
+    }
+    GROUP BY ?gap
+  }
+}

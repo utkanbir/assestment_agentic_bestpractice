@@ -1,5 +1,6 @@
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 @prefix aakp: <https://aakp.ai/ontology/assessment#> .
 @prefix arch: <https://aakp.ai/ontology/architecture#> .
 @prefix org:  <https://aakp.ai/ontology/organization#> .
@@ -8,7 +9,7 @@
     a owl:Ontology ;
     owl:imports <https://aakp.ai/ontology/assessment>, <https://aakp.ai/ontology/architecture> ;
     rdfs:label "AAKP Organization Ontology" ;
-    owl:versionInfo "0.2" .
+    owl:versionInfo "0.3" .
 
 # ─── Classes ────────────────────────────────────────────────────────────────
 
@@ -20,11 +21,19 @@ org:Steward       a owl:Class ; rdfs:subClassOf org:Stakeholder ; rdfs:label "St
 
 # ─── Object Properties ───────────────────────────────────────────────────────
 
-org:ownsCapability       a owl:ObjectProperty ; rdfs:domain org:BusinessUnit ; rdfs:range arch:Capability .
-org:belongsToBusinessUnit a owl:ObjectProperty ; rdfs:domain org:Stakeholder ; rdfs:range org:BusinessUnit .
-org:ownsDataProduct      a owl:ObjectProperty ; rdfs:domain org:Stakeholder ; rdfs:range arch:DataProduct .
+org:ownsCapability          a owl:ObjectProperty ; rdfs:domain org:BusinessUnit ; rdfs:range arch:Capability .
+org:belongsToBusinessUnit   a owl:ObjectProperty ; rdfs:domain org:Stakeholder ; rdfs:range org:BusinessUnit .
+org:belongsToOrganization   a owl:ObjectProperty ; rdfs:domain org:BusinessUnit ; rdfs:range org:Organization .
+org:ownsDataProduct         a owl:ObjectProperty ; rdfs:domain org:Stakeholder ; rdfs:range arch:DataProduct .
 org:participatesInInterview a owl:ObjectProperty ; rdfs:domain org:Stakeholder ; rdfs:range aakp:Interview .
-org:facilitatedBy        a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range org:Stakeholder .
-org:participatedBy       a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range org:Stakeholder .
-org:hasCustomer          a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range org:Organization .
-org:providedBy           a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range org:Stakeholder .
+org:facilitatedBy           a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range org:Stakeholder .
+org:participatedBy          a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range org:Stakeholder .
+org:hasCustomer             a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range org:Organization .
+org:providedBy              a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range org:Stakeholder .
+
+# ─── Datatype Properties ─────────────────────────────────────────────────────
+
+org:hasName  a owl:DatatypeProperty ; rdfs:range xsd:string .
+org:hasRole  a owl:DatatypeProperty ; rdfs:domain org:Stakeholder ; rdfs:range xsd:string .
+org:hasEmail a owl:DatatypeProperty ; rdfs:domain org:Stakeholder ; rdfs:range xsd:string .
+org:pgId     a owl:DatatypeProperty ; rdfs:range xsd:string .

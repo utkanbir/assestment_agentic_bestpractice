@@ -1,12 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.assessment import Task
 from app.schemas.task import TaskCreate, TaskOut, TaskUpdate
+from app.services import kg_writer
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -21,11 +22,19 @@ async def list_tasks(assessment_id: uuid.UUID | None = None, db: AsyncSession = 
 
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
-async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
+async def create_task(
+    body: TaskCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     task = Task(**body.model_dump())
     db.add(task)
     await db.commit()
     await db.refresh(task)
+    background_tasks.add_task(
+        kg_writer.write_task,
+        task.id, task.assessment_id, task.agent_type, task.workstream, task.scope,
+    )
     return task
 
 

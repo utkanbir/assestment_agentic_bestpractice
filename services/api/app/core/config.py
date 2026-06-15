@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     kafka_bootstrap: str = "aakp-kafka.aakp-data.svc.cluster.local:9092"
     fuseki_url: str = "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
     fuseki_dataset: str = "aakp"
+    qdrant_url: str = "http://aakp-qdrant.aakp-information.svc.cluster.local:6333"
 
 
 settings = Settings()

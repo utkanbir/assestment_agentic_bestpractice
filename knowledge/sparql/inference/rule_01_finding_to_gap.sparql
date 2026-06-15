@@ -1,0 +1,31 @@
+# Rule 1: Auto-link approved high-severity Finding to a Gap via hasCategory.
+# Findings with category matching a known capability area → indicatesGap.
+# S2-KA-003
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+INSERT {
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?finding mat:indicatesGap ?gap .
+  }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding a aakp:Finding ;
+             aakp:hasCategory ?category ;
+             aakp:approvalStatus "approved" ;
+             aakp:hasConfidence ?conf .
+    FILTER(?conf >= 0.7)
+  }
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?gap a mat:Gap ;
+         mat:hasCapabilityArea ?category .
+  }
+  FILTER NOT EXISTS {
+    GRAPH <https://aakp.ai/graph/maturity> {
+      ?finding mat:indicatesGap ?gap .
+    }
+  }
+}

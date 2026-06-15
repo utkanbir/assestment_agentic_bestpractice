@@ -1,12 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.assessment import Answer, Interview, Question
 from app.schemas.interview import AnswerCreate, AnswerOut, InterviewCreate, InterviewOut, InterviewUpdate, QuestionCreate, QuestionOut
+from app.services import kg_writer
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
 
@@ -21,11 +22,20 @@ async def list_interviews(task_id: uuid.UUID | None = None, db: AsyncSession = D
 
 
 @router.post("", response_model=InterviewOut, status_code=status.HTTP_201_CREATED)
-async def create_interview(body: InterviewCreate, db: AsyncSession = Depends(get_db)):
+async def create_interview(
+    body: InterviewCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     interview = Interview(**body.model_dump())
     db.add(interview)
     await db.commit()
     await db.refresh(interview)
+    background_tasks.add_task(
+        kg_writer.write_interview,
+        interview.id, interview.task_id,
+        interview.interviewee_name, interview.interviewee_role,
+    )
     return interview
 
 

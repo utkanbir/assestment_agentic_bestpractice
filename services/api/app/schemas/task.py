@@ -28,5 +28,6 @@ class TaskOut(BaseModel):
     workstream: str
     status: TaskStatus
     scope: str | None
+    kg_uri: str | None
     created_at: datetime
     updated_at: datetime

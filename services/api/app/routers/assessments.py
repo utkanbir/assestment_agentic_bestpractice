@@ -1,12 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.assessment import Assessment
 from app.schemas.assessment import AssessmentCreate, AssessmentOut, AssessmentUpdate
+from app.services import kg_writer
 
 router = APIRouter(prefix="/assessments", tags=["assessments"])
 
@@ -18,11 +19,19 @@ async def list_assessments(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=AssessmentOut, status_code=status.HTTP_201_CREATED)
-async def create_assessment(body: AssessmentCreate, db: AsyncSession = Depends(get_db)):
+async def create_assessment(
+    body: AssessmentCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     assessment = Assessment(**body.model_dump())
     db.add(assessment)
     await db.commit()
     await db.refresh(assessment)
+    background_tasks.add_task(
+        kg_writer.write_assessment,
+        assessment.id, assessment.client_name, assessment.project_name,
+    )
     return assessment
 
 

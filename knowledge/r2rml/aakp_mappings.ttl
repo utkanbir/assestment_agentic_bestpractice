@@ -1,0 +1,306 @@
+@prefix rr:   <http://www.w3.org/ns/r2rml#> .
+@prefix rml:  <http://semweb.mmlab.be/ns/rml#> .
+@prefix aakp: <https://aakp.ai/ontology/assessment#> .
+@prefix mat:  <https://aakp.ai/ontology/maturity#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix d:    <https://aakp.ai/data/> .
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AAKP R2RML Mappings  —  PostgreSQL → RDF (Fuseki)
+# S2-KA-007
+#
+# Standard: W3C R2RML (https://www.w3.org/TR/r2rml/)
+# Target: assessment, tasks, interviews, evidences, findings, risks,
+#         recommendations, reports tables
+#
+# Usage: run with any R2RML-compliant processor (e.g. Ontop, RMLMapper,
+#        morph-kgc) pointing to the aakp PostgreSQL database.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ─── assessments ────────────────────────────────────────────────────────────
+
+<#AssessmentsMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "assessments" ] ;
+
+    rr:subjectMap [
+        rr:template  "https://aakp.ai/data/assessment/{id}" ;
+        rr:class     aakp:Assessment ;
+        rr:graphMap  [ rr:constant <https://aakp.ai/graph/assessment> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasClientName ;
+        rr:objectMap [ rr:column "client_name" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasProjectName ;
+        rr:objectMap [ rr:column "project_name" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasCreatedAt ;
+        rr:objectMap [ rr:column "created_at" ; rr:datatype xsd:dateTime ]
+    ] .
+
+
+# ─── tasks ──────────────────────────────────────────────────────────────────
+
+<#TasksMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "tasks" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/task/{id}" ;
+        rr:class    aakp:Task ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/assessment> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate aakp:belongsToAssessment ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/assessment/{assessment_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasAgentType ;
+        rr:objectMap [ rr:column "agent_type" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasWorkstream ;
+        rr:objectMap [ rr:column "workstream" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .
+
+
+# ─── interviews ──────────────────────────────────────────────────────────────
+
+<#InterviewsMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "interviews" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/interview/{id}" ;
+        rr:class    aakp:Interview ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/assessment> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate aakp:conductedForTask ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/task/{task_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:intervieweeName ;
+        rr:objectMap [ rr:column "interviewee_name" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:intervieweeRole ;
+        rr:objectMap [ rr:column "interviewee_role" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .
+
+
+# ─── evidences ───────────────────────────────────────────────────────────────
+
+<#EvidencesMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "evidences" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/evidence/{id}" ;
+        rr:class    aakp:Evidence ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/assessment> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate aakp:collectedInInterview ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/interview/{interview_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasSource ;
+        rr:objectMap [ rr:column "source" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:content ;
+        rr:objectMap [ rr:column "content" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasCategory ;
+        rr:objectMap [ rr:column "evidence_type" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .
+
+
+# ─── findings ────────────────────────────────────────────────────────────────
+
+<#FindingsMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "findings" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/finding/{id}" ;
+        rr:class    aakp:Finding ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/assessment> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate aakp:identifiedInTask ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/task/{task_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:supportedByEvidence ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/evidence/{evidence_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:description ;
+        rr:objectMap [ rr:column "description" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:hasConfidence ;
+        rr:objectMap [ rr:column "confidence" ; rr:datatype xsd:decimal ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:approvalStatus ;
+        rr:objectMap [ rr:column "approval_status" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .
+
+
+# ─── risks ───────────────────────────────────────────────────────────────────
+
+<#RisksMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "risks" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/risk/{id}" ;
+        rr:class    mat:Risk ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/maturity> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate mat:derivedFromFinding ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/finding/{finding_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:hasTitle ;
+        rr:objectMap [ rr:column "title" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:hasDescription ;
+        rr:objectMap [ rr:column "description" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:hasSeverityValue ;
+        rr:objectMap [ rr:column "level" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:hasImpact ;
+        rr:objectMap [ rr:column "impact" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .
+
+
+# ─── recommendations ─────────────────────────────────────────────────────────
+
+<#RecommendationsMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "recommendations" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/recommendation/{id}" ;
+        rr:class    mat:Recommendation ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/maturity> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate mat:hasDescription ;
+        rr:objectMap [ rr:column "description" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:hasPriorityValue ;
+        rr:objectMap [ rr:column "priority" ; rr:datatype xsd:integer ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:estimatedEffort ;
+        rr:objectMap [ rr:column "effort" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate mat:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .
+
+
+# ─── reports ─────────────────────────────────────────────────────────────────
+
+<#ReportsMapping>
+    a rr:TriplesMap ;
+
+    rr:logicalTable [ rr:tableName "reports" ] ;
+
+    rr:subjectMap [
+        rr:template "https://aakp.ai/data/report/{id}" ;
+        rr:class    aakp:Report ;
+        rr:graphMap [ rr:constant <https://aakp.ai/graph/assessment> ] ;
+    ] ;
+
+    rr:predicateObjectMap [
+        rr:predicate aakp:generatedFor ;
+        rr:objectMap [
+            rr:template "https://aakp.ai/data/assessment/{assessment_id}" ;
+            rr:termType rr:IRI ;
+        ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:reportTitle ;
+        rr:objectMap [ rr:column "title" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:executiveSummary ;
+        rr:objectMap [ rr:column "executive_summary" ; rr:datatype xsd:string ]
+    ] ;
+    rr:predicateObjectMap [
+        rr:predicate aakp:pgId ;
+        rr:objectMap [ rr:column "id" ; rr:datatype xsd:string ]
+    ] .

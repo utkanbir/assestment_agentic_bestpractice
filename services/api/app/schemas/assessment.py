@@ -27,5 +27,6 @@ class AssessmentOut(BaseModel):
     project_name: str
     status: AssessmentStatus
     description: str | None
+    kg_uri: str | None
     created_at: datetime
     updated_at: datetime

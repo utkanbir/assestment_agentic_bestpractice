@@ -26,6 +26,7 @@ class InterviewOut(BaseModel):
     interviewee_name: str
     interviewee_role: str | None
     status: InterviewStatus
+    kg_uri: str | None
     created_at: datetime
     updated_at: datetime
 

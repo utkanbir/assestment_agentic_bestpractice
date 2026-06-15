@@ -28,6 +28,15 @@ async def list_resources() -> list[Resource]:
             description="Aktif task için mevcut finding listesi (task_id query param ile)",
             mimeType="application/json",
         ),
+        Resource(
+            uri="resource://similar_findings",
+            name="Similar Findings (Semantic Search)",
+            description=(
+                "Qdrant üzerinden semantik benzerlik araması. "
+                "URI: resource://similar_findings?q=<metin>&limit=5&threshold=0.6"
+            ),
+            mimeType="application/json",
+        ),
     ]
 
 
@@ -43,6 +52,25 @@ async def read_resource(uri: str) -> str:
         async with httpx.AsyncClient(base_url=settings.api_base_url) as client:
             resp = await client.get(f"/api/v1/findings?task_id={task_id}")
             return resp.text
+
+    # S2-BA-005: similar_findings resource — semantic search via Qdrant
+    if uri.startswith("resource://similar_findings"):
+        from urllib.parse import parse_qs, urlparse
+        parsed = urlparse(uri.replace("resource://", "http://dummy/"))
+        qs = parse_qs(parsed.query)
+        query_text = qs.get("q", [""])[0]
+        limit = int(qs.get("limit", ["5"])[0])
+        threshold = float(qs.get("threshold", ["0.6"])[0])
+        if not query_text:
+            return json.dumps({"error": "q param required: resource://similar_findings?q=<metin>"})
+        async with httpx.AsyncClient(base_url=settings.api_base_url) as client:
+            resp = await client.post(
+                "/api/v1/qdrant/search/findings",
+                json={"query": query_text, "limit": limit, "score_threshold": threshold},
+            )
+            if resp.status_code == 200:
+                return resp.text
+            return json.dumps({"error": f"Qdrant search failed: {resp.status_code}"})
 
     return json.dumps({"error": f"Unknown resource: {uri}"})
 
@@ -93,6 +121,23 @@ async def list_tools() -> list[Tool]:
                 "required": ["interview_id", "context", "task_id"],
             },
         ),
+        Tool(
+            name="get_similar_findings",
+            description=(
+                "Qdrant semantik vektör aramasıyla geçmiş assessment'lardan benzer bulgular getirir. "
+                "Yeni bir bulgunun severity/confidence kalibrasyonu için kullan."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Aranacak bulgu/kanıt metni"},
+                    "limit": {"type": "integer", "default": 5, "description": "Maksimum sonuç sayısı"},
+                    "score_threshold": {"type": "number", "default": 0.6, "description": "Minimum cosine benzerlik skoru (0-1)"},
+                    "severity_filter": {"type": "string", "enum": ["critical", "high", "medium", "low", "info"], "description": "Opsiyonel severity filtresi"},
+                },
+                "required": ["text"],
+            },
+        ),
     ]
 
 
@@ -131,6 +176,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             suggestions = [q for q in KUBERNETES_QUESTION_BANK if q["area"] not in covered_areas]
             result = suggestions[0] if suggestions else {"text": "Tüm alanlar kapsandı. Interview tamamlanabilir.", "area": "complete"}
             return [TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
+
+        # S2-BA-004: semantic search tool
+        if name == "get_similar_findings":
+            payload = {
+                "query": arguments["text"],
+                "limit": arguments.get("limit", 5),
+                "score_threshold": arguments.get("score_threshold", 0.6),
+            }
+            if arguments.get("severity_filter"):
+                payload["severity_filter"] = arguments["severity_filter"]
+            resp = await client.post("/api/v1/qdrant/search/findings", json=payload)
+            if resp.status_code == 200:
+                return [TextContent(type="text", text=resp.text)]
+            return [TextContent(type="text", text=json.dumps({"error": f"Qdrant error: {resp.status_code}", "detail": resp.text}))]
 
     return [TextContent(type="text", text=json.dumps({"error": f"Unknown tool: {name}"}))]
 
