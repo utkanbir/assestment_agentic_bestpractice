@@ -1,0 +1,65 @@
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix aakp: <https://aakp.ai/ontology/assessment#> .
+@prefix arch: <https://aakp.ai/ontology/architecture#> .
+@prefix mat:  <https://aakp.ai/ontology/maturity#> .
+
+<https://aakp.ai/ontology/maturity>
+    a owl:Ontology ;
+    owl:imports <https://aakp.ai/ontology/assessment>, <https://aakp.ai/ontology/architecture> ;
+    rdfs:label "AAKP Maturity Ontology" ;
+    owl:versionInfo "0.2" .
+
+# ─── Classes ────────────────────────────────────────────────────────────────
+
+mat:Gap            a owl:Class ; rdfs:label "Gap" .
+mat:Risk           a owl:Class ; rdfs:label "Risk" .
+mat:Recommendation a owl:Class ; rdfs:label "Recommendation" .
+mat:MaturityScore  a owl:Class ; rdfs:label "MaturityScore" .
+mat:Roadmap        a owl:Class ; rdfs:label "Roadmap" .
+mat:RoadmapItem    a owl:Class ; rdfs:label "RoadmapItem" .
+
+mat:Severity  a owl:Class ; rdfs:label "Severity" .
+mat:Critical  a mat:Severity .
+mat:High      a mat:Severity .
+mat:Medium    a mat:Severity .
+mat:Low       a mat:Severity .
+
+mat:Horizon    a owl:Class ; rdfs:label "Horizon" .
+mat:ShortTerm  a mat:Horizon ; rdfs:label "Short Term (0-3 months)" .
+mat:MediumTerm a mat:Horizon ; rdfs:label "Medium Term (3-12 months)" .
+mat:LongTerm   a mat:Horizon ; rdfs:label "Long Term (12+ months)" .
+
+mat:MaturityDimension a owl:Class ; rdfs:label "MaturityDimension" .
+mat:People     a mat:MaturityDimension .
+mat:Process    a mat:MaturityDimension .
+mat:Technology a mat:MaturityDimension .
+mat:Data       a mat:MaturityDimension .
+
+# ─── Object Properties ───────────────────────────────────────────────────────
+
+mat:affectsCapability    a owl:ObjectProperty ; rdfs:range arch:Capability .
+mat:causedByGap          a owl:ObjectProperty ; rdfs:domain mat:Risk ; rdfs:range mat:Gap .
+mat:hasSeverity          a owl:ObjectProperty ; rdfs:domain mat:Risk ; rdfs:range mat:Severity .
+mat:addressesGap         a owl:ObjectProperty ; rdfs:domain mat:Recommendation ; rdfs:range mat:Gap .
+mat:mitigatesRisk        a owl:ObjectProperty ; rdfs:domain mat:Recommendation ; rdfs:range mat:Risk .
+mat:improvesCapability   a owl:ObjectProperty ; rdfs:domain mat:Recommendation ; rdfs:range arch:Capability .
+mat:hasHorizon           a owl:ObjectProperty ; rdfs:range mat:Horizon .
+mat:hasPriority          a owl:ObjectProperty .
+mat:isPartOfRoadmap      a owl:ObjectProperty ; rdfs:domain mat:Recommendation ; rdfs:range mat:RoadmapItem .
+mat:belongsToCapability  a owl:ObjectProperty ; rdfs:domain mat:MaturityScore ; rdfs:range arch:Capability .
+mat:hasDimension         a owl:ObjectProperty ; rdfs:domain mat:MaturityScore ; rdfs:range mat:MaturityDimension .
+mat:generatedFor         a owl:ObjectProperty ; rdfs:domain mat:Roadmap .
+mat:hasRoadmapItem       a owl:ObjectProperty ; rdfs:domain mat:Roadmap ; rdfs:range mat:RoadmapItem .
+mat:partOfRoadmap        a owl:ObjectProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range mat:Roadmap .
+mat:implementsRecommendation a owl:ObjectProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range mat:Recommendation .
+mat:dependsOnItem        a owl:ObjectProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range mat:RoadmapItem .
+mat:indicatesGap         a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range mat:Gap .
+mat:indicatesRisk        a owl:ObjectProperty ; rdfs:domain aakp:Finding ; rdfs:range mat:Risk .
+
+# ─── Datatype Properties ─────────────────────────────────────────────────────
+
+mat:hasLevel         a owl:DatatypeProperty ; rdfs:domain mat:MaturityScore ; rdfs:range xsd:integer .
+mat:hasJustification a owl:DatatypeProperty ; rdfs:domain mat:MaturityScore ; rdfs:range xsd:string .
+mat:estimatedEffort  a owl:DatatypeProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range xsd:string .

@@ -1,0 +1,83 @@
+# Kubernetes Assessment Agent — aakp-agent namespace
+# S1-DA-003: Agent deployment manifest
+# Runs as a Kafka consumer (no inbound HTTP port needed)
+#
+# Before applying: replace <ANTHROPIC_API_KEY> below or pre-create the secret:
+#   kubectl create secret generic aakp-k8s-agent-secret -n aakp-agent \
+#     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aakp-k8s-agent-secret
+  namespace: aakp-agent
+  labels:
+    app.kubernetes.io/part-of: aakp
+type: Opaque
+stringData:
+  ANTHROPIC_API_KEY: "<ANTHROPIC_API_KEY>"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-k8s-agent-config
+  namespace: aakp-agent
+  labels:
+    app.kubernetes.io/part-of: aakp
+data:
+  ANTHROPIC_MODEL: "claude-sonnet-4-6"
+  API_BASE_URL: "http://aakp-api.aakp-information.svc.cluster.local:8000"
+  FUSEKI_URL: "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
+  FUSEKI_DATASET: "aakp"
+  FUSEKI_USER: "admin"
+  FUSEKI_PASSWORD: "aakp-fuseki-secret"
+  KAFKA_BOOTSTRAP: "aakp-kafka.aakp-data.svc.cluster.local:9092"
+  KAFKA_GROUP_ID: "k8s-agent-group"
+  POSTGRES_URL: "postgresql://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/aakp"
+  WS_BASE_URL: "ws://aakp-api.aakp-information.svc.cluster.local:8000"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-kubernetes-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-kubernetes-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: kubernetes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-kubernetes-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-kubernetes-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: kubernetes-agent
+          image: aakp/kubernetes-agent:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: aakp-k8s-agent-config
+            - secretRef:
+                name: aakp-k8s-agent-secret
+          livenessProbe:
+            exec:
+              # Worker process must be running
+              command: ["python", "-c", "import agent.worker"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 1000m

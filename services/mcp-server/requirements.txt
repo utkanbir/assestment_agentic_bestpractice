@@ -1,0 +1,5 @@
+mcp==1.9.2
+httpx==0.28.0
+pydantic==2.10.3
+pydantic-settings==2.6.1
+aiokafka==0.11.0
