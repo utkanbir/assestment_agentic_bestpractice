@@ -32,18 +32,26 @@ function Build-KubernetesAgent {
     Write-OK "aakp/kubernetes-agent:$Tag ready"
 }
 
+function Build-Frontend {
+    Write-Step "Building aakp/frontend:$Tag"
+    docker build -t "aakp/frontend:$Tag" "$Root\frontend"
+    Write-OK "aakp/frontend:$Tag ready"
+}
+
 switch ($Service) {
     "api"                { Build-Api }
     "mcp-server"         { Build-McpServer }
     "kubernetes-agent"   { Build-KubernetesAgent }
+    "frontend"           { Build-Frontend }
     "all" {
         Build-Api
         Build-McpServer
         Build-KubernetesAgent
+        Build-Frontend
         Write-Host "`nAll images built." -ForegroundColor Green
         Write-Host "Images are available to Docker Desktop K8s without push (shared daemon)." -ForegroundColor Gray
     }
     default {
-        Write-Host "Usage: .\build.ps1 [-Service api|mcp-server|kubernetes-agent|all] [-Tag latest]"
+        Write-Host "Usage: .\build.ps1 [-Service api|mcp-server|kubernetes-agent|frontend|all] [-Tag latest]"
     }
 }

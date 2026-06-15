@@ -110,10 +110,13 @@ function Step-Services {
     Write-Step "Deploying AAKP Services (API + MCP Server + K8s Agent) -> Sprint 1"
     Write-Info "FastAPI + MCP Server (aakp-information)..."
     kubectl apply -f "$InfraDir\helm\information-layer\api-manifest.yaml"
+    Write-Info "Frontend (aakp-information)..."
+    kubectl apply -f "$InfraDir\helm\information-layer\frontend-manifest.yaml"
     Write-Info "Kubernetes Agent (aakp-agent)..."
     kubectl apply -f "$InfraDir\helm\agent-layer\kubernetes-agent-manifest.yaml"
     Write-OK "Services deployed - waiting for pods..."
     kubectl rollout status deployment/aakp-api -n aakp-information --timeout=120s
+    kubectl rollout status deployment/aakp-frontend -n aakp-information --timeout=120s
     kubectl rollout status deployment/aakp-kubernetes-agent -n aakp-agent --timeout=120s
 }
 

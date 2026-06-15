@@ -72,6 +72,27 @@ spec:
                 port:
                   number: 8000
 ---
+# Frontend → aakp-frontend (catch-all, must come after /api and /ws)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aakp-frontend-ingress
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-frontend
+                port:
+                  number: 80
+---
 # MCP Server routing → aakp-mcp-server
 apiVersion: networking.k8s.io/v1
 kind: Ingress
