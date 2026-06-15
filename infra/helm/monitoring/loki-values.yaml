@@ -1,0 +1,30 @@
+# Loki — single binary mode for local dev, aakp-monitoring namespace
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 250m
+
+# Disable distributed components for single-node dev
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0

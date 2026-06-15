@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: stain/jena-fuseki
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+fuseki:
+  adminPassword: aakp-fuseki-secret
+  datasetName: aakp
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 500m
+
+service:
+  type: ClusterIP
+  port: 3030

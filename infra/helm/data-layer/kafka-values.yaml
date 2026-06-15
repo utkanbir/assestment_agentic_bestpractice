@@ -1,0 +1,46 @@
+# Kafka — KRaft mode (no Zookeeper), aakp-data namespace
+kraft:
+  enabled: true
+
+replicaCount: 1
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+resources:
+  requests:
+    memory: 1Gi
+    cpu: 500m
+  limits:
+    memory: 2Gi
+    cpu: 1000m
+
+# Create all AAKP topics on startup
+provisioning:
+  enabled: true
+  topics:
+    - name: interview.answer.submitted
+      partitions: 3
+      replicationFactor: 1
+      config:
+        retention.ms: "604800000"
+    - name: assessment.finding.created
+      partitions: 3
+      replicationFactor: 1
+      config:
+        retention.ms: "604800000"
+    - name: assessment.interview.completed
+      partitions: 3
+      replicationFactor: 1
+      config:
+        retention.ms: "604800000"
+    - name: assessment.task.status.changed
+      partitions: 3
+      replicationFactor: 1
+      config:
+        retention.ms: "604800000"
+
+service:
+  type: ClusterIP
+  port: 9092

@@ -1,0 +1,62 @@
+name: AAKP CI — Lint & Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  helm-lint:
+    name: Helm Chart Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "3.14.0"
+
+      - name: Add Helm repos
+        run: |
+          helm repo add bitnami              https://charts.bitnami.com/bitnami
+          helm repo add kong                 https://charts.konghq.com
+          helm repo add qdrant               https://qdrant.github.io/qdrant-helm
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana              https://grafana.github.io/helm-charts
+          helm repo add langfuse             https://langfuse.com/helm/charts
+          helm repo update
+
+      - name: Lint Fuseki chart
+        run: helm lint infra/helm/knowledge-layer/
+
+      - name: Validate values — data layer
+        run: |
+          helm template aakp-minio bitnami/minio -f infra/helm/data-layer/minio-values.yaml > /dev/null
+          helm template aakp-kafka bitnami/kafka -f infra/helm/data-layer/kafka-values.yaml > /dev/null
+
+      - name: Validate values — information layer
+        run: |
+          helm template aakp-postgresql bitnami/postgresql -f infra/helm/information-layer/postgresql-values.yaml > /dev/null
+          helm template aakp-qdrant qdrant/qdrant -f infra/helm/information-layer/qdrant-values.yaml > /dev/null
+
+      - name: Validate values — agent + gateway
+        run: |
+          helm template aakp-redis bitnami/redis -f infra/helm/agent-layer/redis-values.yaml > /dev/null
+          helm template aakp-kong kong/kong -f infra/gateway/kong-values.yaml > /dev/null
+
+  kubectl-validate:
+    name: Namespace & RBAC Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Dry-run namespaces
+        run: kubectl apply --dry-run=client -f infra/namespaces/namespaces.yaml
+
+      - name: Dry-run RBAC
+        run: kubectl apply --dry-run=client -f infra/rbac/rbac.yaml

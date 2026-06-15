@@ -1,0 +1,23 @@
+# Qdrant — single node, aakp-information namespace
+replicaCount: 1
+
+persistence:
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: 250m
+  limits:
+    memory: 1Gi
+    cpu: 500m
+
+service:
+  type: ClusterIP
+  port: 6333
+
+config:
+  cluster:
+    enabled: false

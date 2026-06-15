@@ -1,0 +1,34 @@
+# Kong Gateway — DB-less mode with Kubernetes Ingress Controller
+# Routes will be added in Sprint 1 via KongIngress CRDs
+
+env:
+  database: "off"
+  nginx_worker_processes: "1"
+
+ingressController:
+  enabled: true
+  installCRDs: true
+
+proxy:
+  type: NodePort
+  http:
+    enabled: true
+    servicePort: 80
+    nodePort: 30080
+  tls:
+    enabled: false
+
+admin:
+  enabled: true
+  type: ClusterIP
+  http:
+    enabled: true
+    servicePort: 8001
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 500m

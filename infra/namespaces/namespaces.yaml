@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aakp-data
+  labels:
+    app.kubernetes.io/part-of: aakp
+    aakp/layer: data
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+    aakp/layer: information
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aakp-knowledge
+  labels:
+    app.kubernetes.io/part-of: aakp
+    aakp/layer: knowledge
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aakp-agent
+  labels:
+    app.kubernetes.io/part-of: aakp
+    aakp/layer: agent
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aakp-monitoring
+  labels:
+    app.kubernetes.io/part-of: aakp
+    aakp/layer: monitoring
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aakp-gateway
+  labels:
+    app.kubernetes.io/part-of: aakp
+    aakp/layer: gateway

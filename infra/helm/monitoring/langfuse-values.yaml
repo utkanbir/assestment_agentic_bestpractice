@@ -1,0 +1,30 @@
+# LangFuse — LLM observability, aakp-monitoring namespace
+# Uses the shared PostgreSQL in aakp-information namespace
+
+langfuse:
+  nextauth:
+    url: http://localhost:30333
+    secret: aakp-langfuse-nextauth-secret-change-me
+  salt: aakp-langfuse-encryption-salt-change-me
+  telemetryEnabled: false
+
+postgresql:
+  deploy: false
+  host: aakp-postgresql.aakp-information.svc.cluster.local
+  port: 5432
+  database: langfuse
+  username: aakp
+  password: aakp-pg-secret
+
+service:
+  type: NodePort
+  port: 3000
+  nodePort: 30333
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+  limits:
+    memory: 512Mi
+    cpu: 250m

@@ -1,0 +1,48 @@
+# kube-prometheus-stack — Prometheus + Grafana, aakp-monitoring namespace
+grafana:
+  enabled: true
+  adminPassword: aakp-grafana-secret
+  persistence:
+    enabled: true
+    size: 2Gi
+  service:
+    type: NodePort
+    nodePort: 30300
+  grafana.ini:
+    server:
+      root_url: http://localhost:30300
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true

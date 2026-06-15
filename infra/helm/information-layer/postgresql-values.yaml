@@ -1,0 +1,33 @@
+# PostgreSQL — primary only, aakp-information namespace
+auth:
+  postgresPassword: aakp-pg-root-secret
+  username: aakp
+  password: aakp-pg-secret
+  database: aakp
+
+# Create additional databases for LangFuse on first run
+primary:
+  initdb:
+    scripts:
+      init.sql: |
+        CREATE DATABASE langfuse;
+        GRANT ALL PRIVILEGES ON DATABASE langfuse TO aakp;
+
+  persistence:
+    enabled: true
+    size: 10Gi
+
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+service:
+  type: ClusterIP
+  port: 5432
+
+metrics:
+  enabled: false

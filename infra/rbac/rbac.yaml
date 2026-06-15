@@ -1,0 +1,203 @@
+# ServiceAccounts — one per namespace
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aakp-sa
+  namespace: aakp-data
+  labels:
+    app.kubernetes.io/part-of: aakp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aakp-sa
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aakp-sa
+  namespace: aakp-knowledge
+  labels:
+    app.kubernetes.io/part-of: aakp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aakp-sa
+  namespace: aakp-agent
+  labels:
+    app.kubernetes.io/part-of: aakp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aakp-sa
+  namespace: aakp-monitoring
+  labels:
+    app.kubernetes.io/part-of: aakp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aakp-sa
+  namespace: aakp-gateway
+  labels:
+    app.kubernetes.io/part-of: aakp
+
+---
+# Roles — read-only for most layers, extended for agent layer
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aakp-reader
+  namespace: aakp-data
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aakp-reader
+  namespace: aakp-information
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aakp-reader
+  namespace: aakp-knowledge
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+# Agent layer needs more: spawn workers, read from all other namespaces
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aakp-agent-role
+  namespace: aakp-agent
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aakp-reader
+  namespace: aakp-monitoring
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aakp-reader
+  namespace: aakp-gateway
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBindings
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aakp-sa-binding
+  namespace: aakp-data
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aakp-reader
+subjects:
+- kind: ServiceAccount
+  name: aakp-sa
+  namespace: aakp-data
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aakp-sa-binding
+  namespace: aakp-information
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aakp-reader
+subjects:
+- kind: ServiceAccount
+  name: aakp-sa
+  namespace: aakp-information
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aakp-sa-binding
+  namespace: aakp-knowledge
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aakp-reader
+subjects:
+- kind: ServiceAccount
+  name: aakp-sa
+  namespace: aakp-knowledge
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aakp-sa-binding
+  namespace: aakp-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aakp-agent-role
+subjects:
+- kind: ServiceAccount
+  name: aakp-sa
+  namespace: aakp-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aakp-sa-binding
+  namespace: aakp-monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aakp-reader
+subjects:
+- kind: ServiceAccount
+  name: aakp-sa
+  namespace: aakp-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aakp-sa-binding
+  namespace: aakp-gateway
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aakp-reader
+subjects:
+- kind: ServiceAccount
+  name: aakp-sa
+  namespace: aakp-gateway
