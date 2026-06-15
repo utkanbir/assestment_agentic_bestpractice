@@ -1,0 +1,24 @@
+# K8s Agent: Bir task'ın tüm finding'lerini evidence ile birlikte getir
+# Param: ?taskUri = "https://aakp.ai/data/task/<uuid>"
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+
+SELECT ?finding ?description ?severity ?confidence ?approvalStatus
+       ?evidence ?evidenceContent ?evidenceType
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding a aakp:Finding ;
+             aakp:identifiedInTask   ?taskUri ;
+             aakp:supportedByEvidence ?evidence .
+
+    OPTIONAL { ?finding aakp:description      ?description }
+    OPTIONAL { ?finding aakp:hasConfidence    ?confidence }
+    OPTIONAL { ?finding aakp:approvalStatus   ?approvalStatus }
+    OPTIONAL { ?finding mat:hasSeverity       ?severity }
+
+    OPTIONAL { ?evidence aakp:content         ?evidenceContent }
+    OPTIONAL { ?evidence a                    ?evidenceType }
+  }
+}
+ORDER BY DESC(?confidence)

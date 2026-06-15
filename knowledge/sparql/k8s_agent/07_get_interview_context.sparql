@@ -1,0 +1,29 @@
+# K8s Agent: PRE_INTERVIEW context loader — task scope + geçmiş finding sayısı
+# Param: ?taskUri
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+
+SELECT ?taskUri ?capability ?capLabel ?findingCount ?highSeverityCount
+WHERE {
+  GRAPH <https://aakp.ai/graph/architecture> {
+    ?capability arch:assessedInTask ?taskUri ;
+                rdfs:label          ?capLabel .
+  }
+
+  {
+    SELECT ?taskUri (COUNT(?f) AS ?findingCount)
+                   (COUNT(IF(?sev = mat:High || ?sev = mat:Critical, 1, ?nil)) AS ?highSeverityCount)
+    WHERE {
+      OPTIONAL {
+        GRAPH <https://aakp.ai/graph/assessment> {
+          ?f a aakp:Finding ;
+             aakp:identifiedInTask ?taskUri .
+          OPTIONAL { ?f mat:hasSeverity ?sev }
+        }
+      }
+    }
+    GROUP BY ?taskUri
+  }
+}

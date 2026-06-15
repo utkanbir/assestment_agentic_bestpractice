@@ -1,0 +1,20 @@
+# K8s Agent: Human-in-the-loop — finding approval status güncelle
+# Params: ?findingUri, ?newStatus ("approved" | "rejected")
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+
+DELETE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?findingUri aakp:approvalStatus ?oldStatus .
+  }
+}
+INSERT {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?findingUri aakp:approvalStatus ?newStatus .
+  }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?findingUri aakp:approvalStatus ?oldStatus .
+  }
+}

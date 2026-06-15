@@ -1,0 +1,158 @@
+# FastAPI (aakp-api) + MCP Server — aakp-information namespace
+# S1-DA-002: Application service manifests
+#
+# Secret is NOT in this file — create it manually before applying:
+#   kubectl create secret generic aakp-api-secret -n aakp-information \
+#     --from-literal=ANTHROPIC_API_KEY=sk-ant-...
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-api-config
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+data:
+  DATABASE_URL: "postgresql+asyncpg://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/aakp"
+  REDIS_URL: "redis://:aakp-redis-secret@aakp-redis.aakp-agent.svc.cluster.local:6379/0"
+  KAFKA_BOOTSTRAP: "aakp-kafka.aakp-data.svc.cluster.local:9092"
+  FUSEKI_URL: "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
+  FUSEKI_DATASET: "aakp"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-api
+  namespace: aakp-information
+  labels:
+    app: aakp-api
+    app.kubernetes.io/part-of: aakp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-api
+  template:
+    metadata:
+      labels:
+        app: aakp-api
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      initContainers:
+        - name: alembic-migrate
+          image: aakp/api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: aakp-api-config
+            - secretRef:
+                name: aakp-api-secret
+      containers:
+        - name: api
+          image: aakp/api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: aakp-api-config
+            - secretRef:
+                name: aakp-api-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-api
+  namespace: aakp-information
+  labels:
+    app: aakp-api
+    app.kubernetes.io/part-of: aakp
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  selector:
+    app: aakp-api
+---
+# MCP Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-mcp-server
+  namespace: aakp-information
+  labels:
+    app: aakp-mcp-server
+    app.kubernetes.io/part-of: aakp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-mcp-server
+  template:
+    metadata:
+      labels:
+        app: aakp-mcp-server
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: mcp-server
+          image: aakp/mcp-server:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_BOOTSTRAP
+              value: "aakp-kafka.aakp-data.svc.cluster.local:9092"
+            - name: FUSEKI_URL
+              value: "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
+            - name: API_BASE_URL
+              value: "http://aakp-api.aakp-information.svc.cluster.local:8000"
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 250m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-mcp-server
+  namespace: aakp-information
+  labels:
+    app: aakp-mcp-server
+    app.kubernetes.io/part-of: aakp
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: aakp-mcp-server

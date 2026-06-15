@@ -1,0 +1,20 @@
+# K8s Agent: Cross-task risk propagation — bağımlı task'lardaki critical risk'leri getir
+# Param: ?taskUri (K8s task)
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+
+SELECT ?dependentTask ?relatedFinding ?risk ?riskSeverity
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?taskUri aakp:dependsOnTask ?dependentTask .
+
+    ?relatedFinding a aakp:Finding ;
+                    aakp:identifiedInTask ?dependentTask ;
+                    mat:indicatesRisk     ?risk .
+
+    ?risk mat:hasSeverity mat:Critical .
+
+    BIND(mat:Critical AS ?riskSeverity)
+  }
+}
