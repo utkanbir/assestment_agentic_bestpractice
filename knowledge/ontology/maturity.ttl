@@ -83,7 +83,9 @@ mat:hasImpact        a owl:DatatypeProperty ; rdfs:domain mat:Risk ; rdfs:range 
 mat:hasLikelihood    a owl:DatatypeProperty ; rdfs:domain mat:Risk ; rdfs:range xsd:string .
 
 # Gap
-mat:hasCapabilityArea a owl:DatatypeProperty ; rdfs:domain mat:Gap ; rdfs:range xsd:string .
+mat:hasCapabilityArea    a owl:DatatypeProperty ; rdfs:domain mat:Gap ; rdfs:range xsd:string .
+mat:inferredConfidence   a owl:DatatypeProperty ; rdfs:domain mat:Gap ; rdfs:range xsd:decimal ;
+                           rdfs:comment "Rule 5: max confidence from approved Findings that indicatesGap this gap" .
 
 # Recommendation / RoadmapItem
 mat:hasPriorityValue  a owl:DatatypeProperty ; rdfs:range xsd:integer .

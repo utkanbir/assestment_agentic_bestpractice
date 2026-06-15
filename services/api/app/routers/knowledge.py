@@ -29,3 +29,24 @@ async def kg_approve_finding(finding_id: uuid.UUID, body: ApprovalBody):
         return {"finding_id": str(finding_id), "status": body.status}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Fuseki error: {e}")
+
+
+@router.post("/inference/run")
+async def run_inference():
+    """Trigger all materialized inference rules (rule_*.sparql).
+    Returns per-rule status: 'ok' or 'error: <msg>'.
+    """
+    try:
+        results = await sparql_client.run_inference_rules()
+        return {"results": results, "rules_run": len(results)}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Inference error: {e}")
+
+
+@router.get("/gaps/confidence")
+async def gap_confidence():
+    """Return all Gaps with their inferred confidence (after Rule 5 runs)."""
+    try:
+        return await sparql_client.get_gap_confidence()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Fuseki error: {e}")

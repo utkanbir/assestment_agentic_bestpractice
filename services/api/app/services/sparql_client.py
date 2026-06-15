@@ -16,7 +16,7 @@ PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
 _DATA_NS = "https://aakp.ai/data"
 
-_INFERENCE_DIR = Path(__file__).parent.parent.parent.parent.parent / "knowledge" / "sparql" / "inference"
+_INFERENCE_DIR = Path(__file__).parent.parent / "sparql" / "inference"
 
 
 def _uri(kind: str, uid: uuid.UUID) -> str:
@@ -255,6 +255,21 @@ WHERE {{
   }}
 }}
 ORDER BY DESC(?confidence)
+""")
+        return result.get("results", {}).get("bindings", [])
+
+    async def get_gap_confidence(self) -> list[dict]:
+        result = await self.query("""
+SELECT ?gap ?gapTitle ?capabilityArea ?inferredConfidence
+WHERE {
+  GRAPH <https://aakp.ai/graph/maturity> {
+    ?gap a mat:Gap .
+    OPTIONAL { ?gap mat:hasTitle           ?gapTitle }
+    OPTIONAL { ?gap mat:hasCapabilityArea  ?capabilityArea }
+    OPTIONAL { ?gap mat:inferredConfidence ?inferredConfidence }
+  }
+}
+ORDER BY DESC(?inferredConfidence)
 """)
         return result.get("results", {}).get("bindings", [])
 

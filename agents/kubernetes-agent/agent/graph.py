@@ -14,6 +14,7 @@ from agent.nodes import (
     finding_detector,
     kg_writer,
     risk_reasoner,
+    confidence_propagator,
     report_generator,
 )
 
@@ -48,6 +49,7 @@ def build_graph(checkpointer):
     builder.add_node("finding_detector", partial(finding_detector, llm=llm))
     builder.add_node("kg_writer", kg_writer)
     builder.add_node("risk_reasoner", partial(risk_reasoner, llm=llm))
+    builder.add_node("confidence_propagator", confidence_propagator)
     builder.add_node("report_generator", partial(report_generator, llm=llm))
 
     # Edges
@@ -70,7 +72,8 @@ def build_graph(checkpointer):
         _route_after_kg,
         {"risk_reasoner": "risk_reasoner", "report_generator": "report_generator"},
     )
-    builder.add_edge("risk_reasoner", "report_generator")
+    builder.add_edge("risk_reasoner", "confidence_propagator")
+    builder.add_edge("confidence_propagator", "report_generator")
     builder.add_edge("report_generator", END)
 
     return builder.compile(

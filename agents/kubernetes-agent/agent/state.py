@@ -35,6 +35,10 @@ class KubernetesAgentState(TypedDict):
     # S2-AA-001: risks derived from approved findings
     generated_risks: list[dict]
 
+    # S2-AA-002: confidence propagation results
+    inference_results: dict       # rule_name → "ok" | "error: ..."
+    low_confidence_gaps: list[dict]  # gaps below threshold after Rule 5
+
     # Output
     report_markdown: str
     error: str | None
