@@ -1,6 +1,5 @@
-# AAKP - Sprint 0 Deploy Script
-# Run from: infra/ directory
-# Usage: .\deploy.ps1 [-Action <step>]
+﻿# AAKP - Sprint 0 Deploy Script
+# Usage: .\deploy.ps1 -Action <step>
 # Steps: repos | namespaces | rbac | data | information | knowledge | agent | gateway | monitoring | healthcheck | all
 
 param(
@@ -91,7 +90,7 @@ function Step-Gateway {
         -n aakp-gateway `
         -f "$InfraDir\gateway\kong-values.yaml" `
         --wait --timeout 5m
-    Write-OK "Kong Gateway deployed — proxy on NodePort 30080"
+    Write-OK "Kong Gateway deployed - proxy on NodePort 30080"
 }
 
 function Step-Monitoring {
@@ -116,12 +115,11 @@ function Step-Monitoring {
         -n aakp-monitoring `
         -f "$InfraDir\helm\monitoring\langfuse-values.yaml" `
         --wait --timeout 5m
-    Write-OK "Monitoring stack deployed — Grafana on NodePort 30300, LangFuse on 30333"
+    Write-OK "Monitoring stack deployed - Grafana on NodePort 30300, LangFuse on 30333"
 }
 
 function Step-Healthcheck {
-    Write-Step "Healthcheck — pod status"
-    kubectl get pods -A --field-selector=status.phase!=Running 2>$null | Where-Object { $_ -match "aakp" }
+    Write-Step "Healthcheck - pod status"
     Write-Host ""
     kubectl get pods -n aakp-data
     Write-Host ""
