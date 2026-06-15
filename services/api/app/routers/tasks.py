@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.models.assessment import Task
 from app.schemas.task import TaskCreate, TaskOut, TaskUpdate
 from app.services import kg_writer
+from app.services.kafka_producer import publish
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -47,14 +48,34 @@ async def get_task(task_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
-async def update_task(task_id: uuid.UUID, body: TaskUpdate, db: AsyncSession = Depends(get_db)):
+async def update_task(
+    task_id: uuid.UUID,
+    body: TaskUpdate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     task = await db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    old_status = task.status if hasattr(task, "status") else None
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
     await db.commit()
     await db.refresh(task)
+    new_status = task.status if hasattr(task, "status") else None
+    if old_status != new_status and new_status is not None:
+        background_tasks.add_task(
+            publish,
+            "assessment.task.status.changed",
+            {
+                "task_id": str(task.id),
+                "assessment_id": str(task.assessment_id),
+                "workstream": getattr(task, "workstream", None),
+                "agent_type": getattr(task, "agent_type", None),
+                "old_status": old_status,
+                "new_status": new_status,
+            },
+        )
     return task
 
 
