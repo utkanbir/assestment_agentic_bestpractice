@@ -80,6 +80,7 @@ function Step-Gateway {
     helm upgrade --install aakp-kong kong/kong `
         -n aakp-gateway `
         -f "$InfraDir\gateway\kong-values.yaml" `
+        --skip-crds `
         --wait --timeout 5m
     Write-OK "Kong Gateway deployed - proxy on NodePort 30080"
 }
@@ -90,7 +91,7 @@ function Step-Monitoring {
     helm upgrade --install aakp-prometheus prometheus-community/kube-prometheus-stack `
         -n aakp-monitoring `
         -f "$InfraDir\helm\monitoring\prometheus-values.yaml" `
-        --wait --timeout 10m
+        --timeout 10m
     Write-Info "Loki (log aggregation)..."
     helm upgrade --install aakp-loki grafana/loki `
         -n aakp-monitoring `
@@ -101,12 +102,8 @@ function Step-Monitoring {
         -n aakp-monitoring `
         -f "$InfraDir\helm\monitoring\tempo-values.yaml" `
         --wait --timeout 5m
-    Write-Info "LangFuse (LLM observability)..."
-    helm upgrade --install aakp-langfuse oci://ghcr.io/langfuse/langfuse-helm/langfuse `
-        -n aakp-monitoring `
-        -f "$InfraDir\helm\monitoring\langfuse-values.yaml" `
-        --wait --timeout 5m
-    Write-OK "Monitoring stack deployed - Grafana on NodePort 30300, LangFuse on 30333"
+    Write-OK "Monitoring stack deployed - Grafana on NodePort 30300"
+    Write-Info "NOTE: LangFuse deferred to Sprint 1 (requires ghcr.io auth + PostgreSQL wiring)"
 }
 
 function Step-Healthcheck {
