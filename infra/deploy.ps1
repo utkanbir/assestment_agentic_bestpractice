@@ -1,6 +1,5 @@
-# AAKP — Sprint 0 Deploy Script
-# Run from: infra/ directory
-# Usage: .\deploy.ps1 [-Action <step>]
+﻿# AAKP - Sprint 0 Deploy Script
+# Usage: .\deploy.ps1 -Action <step>
 # Steps: repos | namespaces | rbac | data | information | knowledge | agent | gateway | monitoring | healthcheck | all
 
 param(
@@ -16,12 +15,12 @@ function Write-Info { param([string]$Msg) Write-Host "    $Msg" -ForegroundColor
 
 function Step-Repos {
     Write-Step "Adding Helm repositories"
-    helm repo add bitnami              https://charts.bitnami.com/bitnami
+    helm repo add minio-official       https://charts.min.io/
     helm repo add kong                 https://charts.konghq.com
     helm repo add qdrant               https://qdrant.github.io/qdrant-helm
     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
     helm repo add grafana              https://grafana.github.io/helm-charts
-    helm repo add langfuse             https://langfuse.com/helm/charts
+    helm repo add strimzi              https://strimzi.io/charts/
     helm repo update
     Write-OK "Helm repos ready"
 }
@@ -39,28 +38,22 @@ function Step-RBAC {
 }
 
 function Step-Data {
-    Write-Step "Deploying Data Layer (MinIO + Kafka) → aakp-data"
-    Write-Info "MinIO..."
-    helm upgrade --install aakp-minio bitnami/minio `
+    Write-Step "Deploying Data Layer (MinIO + Kafka) -> aakp-data"
+    Write-Info "MinIO (official chart)..."
+    helm upgrade --install aakp-minio minio-official/minio `
         -n aakp-data `
         -f "$InfraDir\helm\data-layer\minio-values.yaml" `
         --wait --timeout 5m
-    Write-Info "Kafka (KRaft)..."
-    helm upgrade --install aakp-kafka bitnami/kafka `
-        -n aakp-data `
-        -f "$InfraDir\helm\data-layer\kafka-values.yaml" `
-        --wait --timeout 10m
+    Write-Info "Kafka (official apache/kafka image)..."
+    kubectl apply -f "$InfraDir\helm\data-layer\kafka-manifest.yaml"
     Write-OK "Data layer deployed"
 }
 
 function Step-Information {
-    Write-Step "Deploying Information Layer (PostgreSQL + Qdrant) → aakp-information"
-    Write-Info "PostgreSQL..."
-    helm upgrade --install aakp-postgresql bitnami/postgresql `
-        -n aakp-information `
-        -f "$InfraDir\helm\information-layer\postgresql-values.yaml" `
-        --wait --timeout 5m
-    Write-Info "Qdrant..."
+    Write-Step "Deploying Information Layer (PostgreSQL + Qdrant) -> aakp-information"
+    Write-Info "PostgreSQL (official image)..."
+    kubectl apply -f "$InfraDir\helm\information-layer\postgresql-manifest.yaml"
+    Write-Info "Qdrant (official chart)..."
     helm upgrade --install aakp-qdrant qdrant/qdrant `
         -n aakp-information `
         -f "$InfraDir\helm\information-layer\qdrant-values.yaml" `
@@ -69,7 +62,7 @@ function Step-Information {
 }
 
 function Step-Knowledge {
-    Write-Step "Deploying Knowledge Layer (Apache Jena Fuseki) → aakp-knowledge"
+    Write-Step "Deploying Knowledge Layer (Apache Jena Fuseki) -> aakp-knowledge"
     helm upgrade --install aakp-fuseki "$InfraDir\helm\knowledge-layer" `
         -n aakp-knowledge `
         --wait --timeout 5m
@@ -77,30 +70,28 @@ function Step-Knowledge {
 }
 
 function Step-Agent {
-    Write-Step "Deploying Agent Layer (Redis) → aakp-agent"
-    helm upgrade --install aakp-redis bitnami/redis `
-        -n aakp-agent `
-        -f "$InfraDir\helm\agent-layer\redis-values.yaml" `
-        --wait --timeout 5m
+    Write-Step "Deploying Agent Layer (Redis) -> aakp-agent"
+    kubectl apply -f "$InfraDir\helm\agent-layer\redis-manifest.yaml"
     Write-OK "Agent layer deployed"
 }
 
 function Step-Gateway {
-    Write-Step "Deploying Kong Gateway → aakp-gateway"
+    Write-Step "Deploying Kong Gateway -> aakp-gateway"
     helm upgrade --install aakp-kong kong/kong `
         -n aakp-gateway `
         -f "$InfraDir\gateway\kong-values.yaml" `
+        --skip-crds `
         --wait --timeout 5m
-    Write-OK "Kong Gateway deployed — proxy on NodePort 30080"
+    Write-OK "Kong Gateway deployed - proxy on NodePort 30080"
 }
 
 function Step-Monitoring {
-    Write-Step "Deploying Monitoring Stack → aakp-monitoring"
+    Write-Step "Deploying Monitoring Stack -> aakp-monitoring"
     Write-Info "Prometheus + Grafana (kube-prometheus-stack)..."
     helm upgrade --install aakp-prometheus prometheus-community/kube-prometheus-stack `
         -n aakp-monitoring `
         -f "$InfraDir\helm\monitoring\prometheus-values.yaml" `
-        --wait --timeout 10m
+        --timeout 10m
     Write-Info "Loki (log aggregation)..."
     helm upgrade --install aakp-loki grafana/loki `
         -n aakp-monitoring `
@@ -111,17 +102,12 @@ function Step-Monitoring {
         -n aakp-monitoring `
         -f "$InfraDir\helm\monitoring\tempo-values.yaml" `
         --wait --timeout 5m
-    Write-Info "LangFuse (LLM observability)..."
-    helm upgrade --install aakp-langfuse langfuse/langfuse `
-        -n aakp-monitoring `
-        -f "$InfraDir\helm\monitoring\langfuse-values.yaml" `
-        --wait --timeout 5m
-    Write-OK "Monitoring stack deployed — Grafana on NodePort 30300, LangFuse on 30333"
+    Write-OK "Monitoring stack deployed - Grafana on NodePort 30300"
+    Write-Info "NOTE: LangFuse deferred to Sprint 1 (requires ghcr.io auth + PostgreSQL wiring)"
 }
 
 function Step-Healthcheck {
-    Write-Step "Healthcheck — pod status"
-    kubectl get pods -A --field-selector=status.phase!=Running 2>$null | Where-Object { $_ -match "aakp" }
+    Write-Step "Healthcheck - pod status"
     Write-Host ""
     kubectl get pods -n aakp-data
     Write-Host ""
