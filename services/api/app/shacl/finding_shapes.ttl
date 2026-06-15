@@ -1,0 +1,86 @@
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix aakp: <https://aakp.ai/ontology/assessment#> .
+@prefix mat:  <https://aakp.ai/ontology/maturity#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# ─── Finding Shape ──────────────────────────────────────────────────────────
+# Core guardrail: her finding en az bir evidence ile desteklenmeli
+
+<https://aakp.ai/shapes/FindingShape>
+    a sh:NodeShape ;
+    sh:targetClass aakp:Finding ;
+    sh:name "FindingShape" ;
+    sh:description "AAKP core guardrail: no finding without evidence." ;
+
+    # evidence zorunlu — ontoloji Rule 7
+    sh:property [
+        sh:path     aakp:supportedByEvidence ;
+        sh:minCount 1 ;
+        sh:class    aakp:Evidence ;
+        sh:message  "Finding must be supported by at least one Evidence instance." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    # task referansı zorunlu
+    sh:property [
+        sh:path     aakp:identifiedInTask ;
+        sh:minCount 1 ;
+        sh:class    aakp:Task ;
+        sh:message  "Finding must reference a Task via aakp:identifiedInTask." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    # confidence: 0.0 - 1.0 arası
+    sh:property [
+        sh:path     aakp:hasConfidence ;
+        sh:minCount 1 ;
+        sh:message  "Finding must have a confidence value." ;
+        sh:severity sh:Warning ;
+    ] ;
+
+    # severity zorunlu
+    sh:property [
+        sh:path     mat:hasSeverity ;
+        sh:minCount 1 ;
+        sh:class    mat:Severity ;
+        sh:message  "Finding must have a severity level (Critical/High/Medium/Low/Info)." ;
+        sh:severity sh:Violation ;
+    ] .
+
+# ─── Evidence Shape ──────────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/EvidenceShape>
+    a sh:NodeShape ;
+    sh:targetClass aakp:Evidence ;
+    sh:name "EvidenceShape" ;
+
+    sh:property [
+        sh:path     aakp:hasSource ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Evidence must have a source." ;
+        sh:severity sh:Violation ;
+    ] ;
+
+    sh:property [
+        sh:path     aakp:content ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "Evidence must have content." ;
+        sh:severity sh:Violation ;
+    ] .
+
+# ─── Task Shape ──────────────────────────────────────────────────────────────
+
+<https://aakp.ai/shapes/TaskShape>
+    a sh:NodeShape ;
+    sh:targetClass aakp:Task ;
+    sh:name "TaskShape" ;
+
+    sh:property [
+        sh:path     aakp:belongsToAssessment ;
+        sh:minCount 1 ;
+        sh:class    aakp:Assessment ;
+        sh:message  "Task must belong to an Assessment." ;
+        sh:severity sh:Violation ;
+    ] .

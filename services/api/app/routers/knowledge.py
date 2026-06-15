@@ -50,3 +50,16 @@ async def gap_confidence():
         return await sparql_client.get_gap_confidence()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Fuseki error: {e}")
+
+
+@router.post("/validate/shacl")
+async def validate_shacl(graph_uri: str | None = None):
+    """S2-KA-002: Validate Fuseki KG against bundled SHACL shapes.
+
+    Optional query param: graph_uri=<URI> to validate a specific named graph.
+    Default: validates default graph (all data).
+    """
+    try:
+        return await sparql_client.validate_shacl(graph_uri)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"SHACL validation error: {e}")
