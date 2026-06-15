@@ -1,0 +1,18 @@
+QUESTION_BANK = [
+    {"id": "k8s-001", "area": "cluster_architecture",
+     "text": "Mevcut Kubernetes cluster mimarinizi açıklar mısınız? Kaç node var, hangi versiyon?"},
+    {"id": "k8s-002", "area": "workload_management",
+     "text": "Hangi workload tipleri çalışıyor? StatefulSet, DaemonSet, Job/CronJob kullanıyor musunuz?"},
+    {"id": "k8s-003", "area": "networking",
+     "text": "CNI plugin olarak ne kullanıyorsunuz? NetworkPolicy tanımlı mı?"},
+    {"id": "k8s-004", "area": "security",
+     "text": "RBAC politikaları nasıl tanımlanmış? Pod Security Standards uygulanıyor mu?"},
+    {"id": "k8s-005", "area": "observability",
+     "text": "Cluster ve workload metrikleri nasıl izleniyor? Hangi observability stack kullanılıyor?"},
+    {"id": "k8s-006", "area": "capacity",
+     "text": "Resource request/limit tanımları yapılmış mı? HPA veya VPA kullanılıyor mu?"},
+    {"id": "k8s-007", "area": "disaster_recovery",
+     "text": "etcd yedekleme stratejisi nedir? Cluster restore prosedürü test edildi mi?"},
+    {"id": "k8s-008", "area": "cicd",
+     "text": "Deployment pipeline nasıl çalışıyor? GitOps (ArgoCD/Flux) kullanılıyor mu?"},
+]

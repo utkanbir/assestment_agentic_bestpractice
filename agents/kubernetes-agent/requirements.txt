@@ -1,0 +1,12 @@
+langgraph==0.2.55
+langchain-anthropic==0.3.7
+langchain-core==0.3.25
+anthropic==0.40.0
+httpx==0.28.0
+aiokafka==0.11.0
+pydantic==2.10.3
+pydantic-settings==2.6.1
+psycopg[binary]==3.2.3
+langgraph-checkpoint-postgres==2.0.9
+SPARQLWrapper==2.0.0
+websockets==14.1
