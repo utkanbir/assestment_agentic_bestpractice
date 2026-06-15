@@ -1,7 +1,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Enum, Float, ForeignKey, String, Text
+from sqlalchemy import Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,7 +41,7 @@ class Evidence(UUIDMixin, TimestampMixin, Base):
     interview_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("interviews.id", ondelete="SET NULL"), nullable=True)
     source: Mapped[str] = mapped_column(String(500))
     content: Mapped[str] = mapped_column(Text)
-    evidence_type: Mapped[EvidenceType] = mapped_column(Enum(EvidenceType))
+    evidence_type: Mapped[str] = mapped_column(String(50))
     kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     findings: Mapped[list["Finding"]] = relationship(back_populates="evidence", cascade="all, delete-orphan")
@@ -53,9 +53,9 @@ class Finding(UUIDMixin, TimestampMixin, Base):
     task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"))
     evidence_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("evidences.id", ondelete="CASCADE"))
     description: Mapped[str] = mapped_column(Text)
-    severity: Mapped[FindingSeverity] = mapped_column(Enum(FindingSeverity))
+    severity: Mapped[str] = mapped_column(String(50))
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
-    approval_status: Mapped[ApprovalStatus] = mapped_column(Enum(ApprovalStatus), default=ApprovalStatus.PENDING)
+    approval_status: Mapped[str] = mapped_column(String(50), default="pending")
     kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     evidence: Mapped["Evidence"] = relationship(back_populates="findings")
@@ -68,7 +68,7 @@ class Risk(UUIDMixin, TimestampMixin, Base):
 
     finding_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("findings.id", ondelete="CASCADE"))
     description: Mapped[str] = mapped_column(Text)
-    level: Mapped[RiskLevel] = mapped_column(Enum(RiskLevel))
+    level: Mapped[str] = mapped_column(String(50))
     impact: Mapped[str | None] = mapped_column(Text)
 
     finding: Mapped["Finding"] = relationship(back_populates="risks")

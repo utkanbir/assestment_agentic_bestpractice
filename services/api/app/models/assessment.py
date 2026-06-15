@@ -1,7 +1,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Enum, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,7 +33,7 @@ class Assessment(UUIDMixin, TimestampMixin, Base):
 
     client_name: Mapped[str] = mapped_column(String(255))
     project_name: Mapped[str] = mapped_column(String(255))
-    status: Mapped[AssessmentStatus] = mapped_column(Enum(AssessmentStatus), default=AssessmentStatus.DRAFT)
+    status: Mapped[str] = mapped_column(String(50), default="draft")
     description: Mapped[str | None] = mapped_column(Text)
 
     tasks: Mapped[list["Task"]] = relationship(back_populates="assessment", cascade="all, delete-orphan")
@@ -45,7 +45,7 @@ class Task(UUIDMixin, TimestampMixin, Base):
     assessment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessments.id", ondelete="CASCADE"))
     agent_type: Mapped[str] = mapped_column(String(100))
     workstream: Mapped[str] = mapped_column(String(255))
-    status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), default=TaskStatus.PENDING)
+    status: Mapped[str] = mapped_column(String(50), default="pending")
     scope: Mapped[str | None] = mapped_column(Text)
 
     assessment: Mapped["Assessment"] = relationship(back_populates="tasks")
@@ -58,7 +58,7 @@ class Interview(UUIDMixin, TimestampMixin, Base):
     task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"))
     interviewee_name: Mapped[str] = mapped_column(String(255))
     interviewee_role: Mapped[str | None] = mapped_column(String(255))
-    status: Mapped[InterviewStatus] = mapped_column(Enum(InterviewStatus), default=InterviewStatus.SCHEDULED)
+    status: Mapped[str] = mapped_column(String(50), default="scheduled")
 
     task: Mapped["Task"] = relationship(back_populates="interviews")
     questions: Mapped[list["Question"]] = relationship(back_populates="interview", cascade="all, delete-orphan")
