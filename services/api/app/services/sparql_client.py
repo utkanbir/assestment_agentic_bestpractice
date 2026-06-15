@@ -536,4 +536,60 @@ ORDER BY ?workstream
         }
 
 
+    # ── Orchestrator SPARQL queries (S4-KA-002, S4-KA-003) ───────────────────
+
+    def query_risk_heatmap(self) -> list[dict]:
+        """Synchronous SPARQL query for risk heatmap (called from FastAPI sync context)."""
+        import requests
+        sparql_file = Path(__file__).parents[5] / "knowledge" / "sparql" / "orchestrator" / "02_risk_heatmap.sparql"
+        bundled = Path(__file__).parent.parent / "sparql" / "orchestrator" / "02_risk_heatmap.sparql"
+        path = bundled if bundled.exists() else sparql_file
+        if not path.exists():
+            return []
+        query_text = path.read_text(encoding="utf-8")
+        lines = [l for l in query_text.splitlines() if not l.strip().startswith("#")]
+        resp = requests.get(
+            self._query_url,
+            params={"query": "\n".join(lines)},
+            headers={"Accept": "application/sparql-results+json"},
+            auth=self._auth,
+            timeout=30,
+        )
+        if not resp.ok:
+            return []
+        bindings = resp.json().get("results", {}).get("bindings", [])
+        return [
+            {
+                "capability_area": b.get("capabilityArea", {}).get("value", ""),
+                "severity": b.get("severityLevel", {}).get("value", ""),
+                "risk_count": int(b.get("riskCount", {}).get("value", 0)),
+                "workstreams": b.get("affectedWorkstreams", {}).get("value", "").split(","),
+                "max_confidence": float(b.get("maxConfidence", {}).get("value", 0) or 0),
+            }
+            for b in bindings
+        ]
+
+    def query_cross_task_dependencies(self) -> list[dict]:
+        """Synchronous SPARQL query for cross-task dependencies (S4-KA-002)."""
+        import requests
+        sparql_file = Path(__file__).parents[5] / "knowledge" / "sparql" / "orchestrator" / "01_cross_task_dependencies.sparql"
+        bundled = Path(__file__).parent.parent / "sparql" / "orchestrator" / "01_cross_task_dependencies.sparql"
+        path = bundled if bundled.exists() else sparql_file
+        if not path.exists():
+            return []
+        query_text = path.read_text(encoding="utf-8")
+        lines = [l for l in query_text.splitlines() if not l.strip().startswith("#")]
+        resp = requests.get(
+            self._query_url,
+            params={"query": "\n".join(lines)},
+            headers={"Accept": "application/sparql-results+json"},
+            auth=self._auth,
+            timeout=30,
+        )
+        if not resp.ok:
+            return []
+        bindings = resp.json().get("results", {}).get("bindings", [])
+        return [{k: v["value"] for k, v in b.items()} for b in bindings]
+
+
 sparql_client = SPARQLClient()

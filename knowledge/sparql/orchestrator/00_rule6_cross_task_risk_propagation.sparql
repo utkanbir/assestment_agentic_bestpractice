@@ -1,0 +1,43 @@
+# S4-KA-001: Inference Rule 6 — Cross-Task Risk Propagation
+#
+# IF TaskA dependsOnTask TaskB
+# AND TaskB producesFinding F
+# AND F indicatesRisk R
+# AND R hasSeverityValue "critical" OR "high"
+# THEN R propagatedToTask TaskA (inferred)
+#      R isPropagated true
+#
+# Çalıştırma: Her assessment.interview.completed event sonrası Orchestrator çağırır
+# INSERT INTO graph:maturity
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+
+INSERT {
+    GRAPH <https://aakp.ai/graph/maturity> {
+        ?risk mat:propagatedToTask   ?taskA .
+        ?risk mat:propagatedFromTask ?taskB .
+        ?risk mat:isPropagated       true .
+    }
+}
+WHERE {
+    GRAPH <https://aakp.ai/graph/assessment> {
+        ?taskA a aakp:Task ;
+               aakp:dependsOnTask ?taskB .
+        ?taskB a aakp:Task ;
+               aakp:producesFinding ?finding .
+    }
+
+    GRAPH <https://aakp.ai/graph/maturity> {
+        ?finding mat:indicatesRisk ?risk .
+        ?risk    mat:hasSeverityValue ?sev .
+        FILTER(?sev IN ("critical", "high"))
+    }
+
+    # Do not re-propagate already propagated risks
+    FILTER NOT EXISTS {
+        GRAPH <https://aakp.ai/graph/maturity> {
+            ?risk mat:propagatedToTask ?taskA .
+        }
+    }
+}

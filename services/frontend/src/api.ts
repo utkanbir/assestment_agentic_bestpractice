@@ -82,3 +82,60 @@ export const WORKSTREAMS = [
 ] as const;
 
 export type WorkstreamId = (typeof WORKSTREAMS)[number]["id"];
+
+// ── Risk / Heatmap (S4-FA-001) ──────────────────────────────────────────────
+
+export interface RiskHeatmapCell {
+  capability_area: string;
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  risk_count: number;
+  workstreams: string[];
+  max_confidence: number;
+}
+
+export const getRiskHeatmap = (assessmentId: string) =>
+  fetchJSON<RiskHeatmapCell[]>(`/orchestrator/${assessmentId}/risk-heatmap`);
+
+// ── Executive Summary (S4-FA-002) ──────────────────────────────────────────
+
+export interface ExecutiveSummary {
+  assessment_id: string;
+  summary: string;
+  generated_at: string;
+  total_risks: number;
+  critical_count: number;
+  dependency_count: number;
+  conflict_count: number;
+}
+
+export const getExecutiveSummary = (assessmentId: string) =>
+  fetchJSON<ExecutiveSummary>(`/orchestrator/${assessmentId}/executive-summary`);
+
+// ── Consolidated Roadmap (S4-FA-003) ────────────────────────────────────────
+
+export interface RoadmapItem {
+  id: string;
+  title: string;
+  description: string;
+  horizon: "short" | "medium" | "long";
+  priority: number;
+  workstreams: string[];
+  effort: string;
+  addresses_conflict: boolean;
+}
+
+export const getConsolidatedRoadmap = (assessmentId: string) =>
+  fetchJSON<RoadmapItem[]>(`/orchestrator/${assessmentId}/roadmap`);
+
+// ── Cross-Task Dependencies (S4-FA-004) ─────────────────────────────────────
+
+export interface Dependency {
+  workstream_a: string;
+  workstream_b: string;
+  dependency_type: string;
+  shared_capability_area?: string;
+  conflict_signal?: string;
+}
+
+export const getCrossTaskDependencies = (assessmentId: string) =>
+  fetchJSON<Dependency[]>(`/orchestrator/${assessmentId}/dependencies`);

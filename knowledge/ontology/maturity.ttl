@@ -90,3 +90,37 @@ mat:inferredConfidence   a owl:DatatypeProperty ; rdfs:domain mat:Gap ; rdfs:ran
 # Recommendation / RoadmapItem
 mat:hasPriorityValue  a owl:DatatypeProperty ; rdfs:range xsd:integer .
 mat:estimatedEffort   a owl:DatatypeProperty ; rdfs:domain mat:RoadmapItem ; rdfs:range xsd:string .
+
+# Cross-task risk propagation (S4-KA-001 — Rule 6)
+mat:propagatedToTask  a owl:ObjectProperty ;
+    rdfs:domain mat:Risk ;
+    rdfs:range  aakp:Task ;
+    rdfs:comment "Rule 6: Risk propagated from a dependency task via aakp:dependsOnTask" .
+
+mat:propagatedFromTask a owl:ObjectProperty ;
+    rdfs:domain mat:Risk ;
+    rdfs:range  aakp:Task ;
+    rdfs:comment "Rule 6: Source task from which this risk was propagated" .
+
+mat:isPropagated a owl:DatatypeProperty ;
+    rdfs:domain mat:Risk ;
+    rdfs:range  xsd:boolean ;
+    rdfs:comment "Rule 6: true when risk is inferred via cross-task dependency, not directly observed" .
+
+# ─── Inference Rules ─────────────────────────────────────────────────────────
+#
+# Rule 5 (confidence propagation) — implemented in reasoner config
+#   IF Finding hasConfidence C AND Finding indicatesGap G
+#   THEN G inferredConfidence MAX(C, existing_inferredConfidence)
+#
+# Rule 6 (cross-task risk propagation) — SPARQL CONSTRUCT or reasoner
+#   IF TaskA dependsOnTask TaskB
+#   AND TaskB producesFinding F
+#   AND F indicatesRisk R
+#   AND R hasSeverityValue "critical"
+#   THEN R propagatedToTask TaskA
+#        R isPropagated true
+#
+# Rule 7 (unsupported finding invalid) — implemented in SHACL + LangGraph edge
+#   IF Finding NOT supportedByEvidence E
+#   THEN Finding isInvalid true
