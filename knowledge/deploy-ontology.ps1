@@ -4,6 +4,8 @@
 param(
     [string]$FusekiUrl = "http://localhost:3030",
     [string]$Dataset   = "aakp",
+    [string]$User      = "admin",
+    [string]$Password  = "aakp-fuseki-secret",
     [switch]$PortForward
 )
 
@@ -16,6 +18,10 @@ $files = @(
     @{ file = "maturity.ttl";     graph = "$GraphBase/maturity"     },
     @{ file = "organization.ttl"; graph = "$GraphBase/organization" }
 )
+
+$bytes   = [System.Text.Encoding]::ASCII.GetBytes("${User}:${Password}")
+$b64     = [Convert]::ToBase64String($bytes)
+$headers = @{ Authorization = "Basic $b64" }
 
 if ($PortForward) {
     Write-Host "Port-forwarding Fuseki 3030..." -ForegroundColor Cyan
@@ -32,7 +38,8 @@ foreach ($entry in $files) {
     try {
         $response = Invoke-RestMethod -Method Put -Uri $url `
             -InFile $path `
-            -ContentType "text/turtle; charset=utf-8"
+            -ContentType "text/turtle; charset=utf-8" `
+            -Headers $headers
         Write-Host "  OK" -ForegroundColor Green
     } catch {
         Write-Host "  ERROR: $_" -ForegroundColor Red
@@ -43,7 +50,7 @@ Write-Host "`nVerifying named graphs..." -ForegroundColor Cyan
 $sparql = "SELECT ?g (COUNT(*) AS ?triples) WHERE { GRAPH ?g { ?s ?p ?o } FILTER(STRSTARTS(STR(?g), '$GraphBase')) } GROUP BY ?g"
 $verify = Invoke-RestMethod -Method Get `
     -Uri "$FusekiUrl/$Dataset/sparql?query=$([Uri]::EscapeDataString($sparql))" `
-    -Headers @{ Accept = "application/sparql-results+json" }
+    -Headers ($headers + @{ Accept = "application/sparql-results+json" })
 
 foreach ($result in $verify.results.bindings) {
     Write-Host "  $($result.g.value): $($result.triples.value) triples" -ForegroundColor Green
