@@ -1,0 +1,66 @@
+# S4-KA-004: Consolidated roadmap verisi (horizon × priority)
+# 8 workstream roadmap'ini tek öncelikli plana indirger
+# Orchestrator consolidated roadmap generator node'u bu sorguyu kullanır
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+
+SELECT
+    ?recommendation
+    ?recTitle
+    ?recDescription
+    ?horizonLabel
+    ?priorityValue
+    ?capabilityArea
+    ?workstream
+    ?riskSeverity
+    (COUNT(DISTINCT ?mitigatedRisk) AS ?riskCount)
+    (COUNT(DISTINCT ?addressedGap)  AS ?gapCount)
+WHERE {
+    GRAPH <https://aakp.ai/graph/maturity> {
+        ?recommendation a mat:Recommendation .
+
+        OPTIONAL { ?recommendation mat:hasTitle       ?recTitle }
+        OPTIONAL { ?recommendation mat:hasDescription ?recDescription }
+        OPTIONAL { ?recommendation mat:hasPriorityValue ?priorityValue }
+
+        # Horizon
+        OPTIONAL {
+            ?recommendation mat:hasHorizon ?horizonInd .
+            ?horizonInd rdfs:label ?horizonLabel .
+        }
+
+        # Addressed gap → capability area
+        OPTIONAL {
+            ?recommendation mat:addressesGap ?addressedGap .
+            ?addressedGap   mat:hasCapabilityArea ?capabilityArea .
+        }
+
+        # Mitigated risks → for priority boosting
+        OPTIONAL {
+            ?recommendation mat:mitigatesRisk ?mitigatedRisk .
+            ?mitigatedRisk  mat:hasSeverityValue ?riskSeverity .
+        }
+    }
+
+    # Workstream context
+    OPTIONAL {
+        GRAPH <https://aakp.ai/graph/assessment> {
+            ?task a aakp:Task ;
+                  aakp:hasWorkstream ?workstream ;
+                  aakp:producesFinding ?finding .
+        }
+        ?finding mat:indicatesGap ?addressedGap .
+    }
+}
+GROUP BY ?recommendation ?recTitle ?recDescription ?horizonLabel
+         ?priorityValue ?capabilityArea ?workstream ?riskSeverity
+ORDER BY
+    # Short-term first, then by priority, then by risk impact
+    IF(?horizonLabel = "Short Term (0-3 months)",  1,
+    IF(?horizonLabel = "Medium Term (3-12 months)", 2, 3))
+    ?priorityValue
+    IF(?riskSeverity = "critical", 1,
+    IF(?riskSeverity = "high",     2,
+    IF(?riskSeverity = "medium",   3, 4)))

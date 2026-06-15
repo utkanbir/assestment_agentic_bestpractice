@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import assessments, health, interviews, knowledge, qdrant, question_bank, recommendations, reports, risks, tasks, ws
 from app.routers.findings import evidence_router, finding_router
+from app.routers import orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -62,3 +63,4 @@ app.include_router(reports.router, prefix="/api/v1")
 app.include_router(qdrant.router, prefix="/api/v1")
 app.include_router(ws.router)
 app.include_router(knowledge.router, prefix="/api/v1")
+app.include_router(orchestrator.router, prefix="/api/v1")

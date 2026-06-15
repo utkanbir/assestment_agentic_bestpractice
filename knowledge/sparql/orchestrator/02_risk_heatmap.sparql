@@ -1,0 +1,41 @@
+# S4-KA-003: Risk heatmap veri sorgusu (severity × capability area)
+# Orchestrator executive summary sayfası ve risk consolidation node için kullanır
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+
+SELECT
+    ?capabilityArea
+    ?severityLevel
+    (COUNT(DISTINCT ?risk) AS ?riskCount)
+    (GROUP_CONCAT(DISTINCT ?workstream ; separator=",") AS ?affectedWorkstreams)
+    (MAX(?inferredConfidence) AS ?maxConfidence)
+WHERE {
+    GRAPH <https://aakp.ai/graph/maturity> {
+        ?risk a mat:Risk ;
+              mat:hasSeverityValue ?severityLevel ;
+              mat:causedByGap ?gap .
+
+        ?gap mat:hasCapabilityArea ?capabilityArea .
+
+        OPTIONAL { ?gap mat:inferredConfidence ?inferredConfidence }
+    }
+
+    # Join to get workstream context from assessment graph
+    OPTIONAL {
+        GRAPH <https://aakp.ai/graph/assessment> {
+            ?task a aakp:Task ;
+                  aakp:hasWorkstream ?workstream ;
+                  aakp:producesFinding ?finding .
+        }
+        ?finding mat:indicatesRisk ?risk .
+    }
+}
+GROUP BY ?capabilityArea ?severityLevel
+ORDER BY
+    # Severity ordering: critical=1, high=2, medium=3, low=4
+    IF(?severityLevel = "critical", 1,
+    IF(?severityLevel = "high",     2,
+    IF(?severityLevel = "medium",   3, 4)))
+    ?capabilityArea

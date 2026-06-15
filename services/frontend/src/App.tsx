@@ -2,6 +2,10 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import AssessmentOverview from "./pages/AssessmentOverview";
 import AgentSelection from "./pages/AgentSelection";
 import ParallelSessions from "./pages/ParallelSessions";
+import RiskHeatmap from "./pages/RiskHeatmap";
+import ExecutiveSummaryPage from "./pages/ExecutiveSummary";
+import ConsolidatedRoadmap from "./pages/ConsolidatedRoadmap";
+import CrossTaskDependencies from "./pages/CrossTaskDependencies";
 
 const navStyle = (active: boolean): React.CSSProperties => ({
   padding: "8px 16px",
@@ -32,6 +36,10 @@ export default function App() {
         <NavLink to="/" end style={({ isActive }) => navStyle(isActive)}>Genel Bakış</NavLink>
         <NavLink to="/agents" style={({ isActive }) => navStyle(isActive)}>Ajan Seçimi</NavLink>
         <NavLink to="/sessions" style={({ isActive }) => navStyle(isActive)}>Paralel Oturumlar</NavLink>
+        <NavLink to="/heatmap" style={({ isActive }) => navStyle(isActive)}>Risk Heatmap</NavLink>
+        <NavLink to="/executive" style={({ isActive }) => navStyle(isActive)}>Executive Summary</NavLink>
+        <NavLink to="/roadmap" style={({ isActive }) => navStyle(isActive)}>Roadmap</NavLink>
+        <NavLink to="/dependencies" style={({ isActive }) => navStyle(isActive)}>Bağımlılıklar</NavLink>
       </nav>
 
       {/* Page content */}
@@ -40,6 +48,10 @@ export default function App() {
           <Route path="/" element={<AssessmentOverview />} />
           <Route path="/agents" element={<AgentSelection />} />
           <Route path="/sessions" element={<ParallelSessions />} />
+          <Route path="/heatmap" element={<RiskHeatmap />} />
+          <Route path="/executive" element={<ExecutiveSummaryPage />} />
+          <Route path="/roadmap" element={<ConsolidatedRoadmap />} />
+          <Route path="/dependencies" element={<CrossTaskDependencies />} />
         </Routes>
       </main>
     </div>

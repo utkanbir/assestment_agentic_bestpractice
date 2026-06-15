@@ -1,0 +1,57 @@
+# S4-KA-002: Cross-task dependency sorgusu
+# Task.dependsOnTask üzerinden bağımlılıkları ve paylaşılan risk alanlarını tespit eder
+# Orchestrator bu sorguyu assessment tamamlandığında çalıştırır
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+
+SELECT DISTINCT
+    ?taskA ?workstreamA
+    ?taskB ?workstreamB
+    ?dependencyType
+    ?sharedCapabilityArea
+    ?riskA ?riskSeverityA
+    ?riskB ?riskSeverityB
+    ?conflictSignal
+WHERE {
+    GRAPH <https://aakp.ai/graph/assessment> {
+        # Explicit task dependencies
+        ?taskA a aakp:Task ;
+               aakp:hasWorkstream ?workstreamA ;
+               aakp:dependsOnTask ?taskB .
+        ?taskB a aakp:Task ;
+               aakp:hasWorkstream ?workstreamB .
+        BIND("explicit" AS ?dependencyType)
+    }
+
+    # Shared capability area risk overlap (implicit dependency signal)
+    OPTIONAL {
+        GRAPH <https://aakp.ai/graph/maturity> {
+            ?riskA a mat:Risk ;
+                   mat:causedByGap ?gapA ;
+                   mat:hasSeverityValue ?riskSeverityA .
+            ?gapA  mat:hasCapabilityArea ?sharedCapabilityArea .
+
+            ?riskB a mat:Risk ;
+                   mat:causedByGap ?gapB ;
+                   mat:hasSeverityValue ?riskSeverityB .
+            ?gapB  mat:hasCapabilityArea ?sharedCapabilityArea .
+
+            FILTER(?riskA != ?riskB)
+        }
+        GRAPH <https://aakp.ai/graph/assessment> {
+            ?taskA aakp:producesFinding ?findingA .
+            ?taskB aakp:producesFinding ?findingB .
+        }
+
+        # Conflict signal: same area, different severity
+        BIND(
+            IF(?riskSeverityA != ?riskSeverityB,
+               CONCAT("SEVERITY_CONFLICT: ", ?workstreamA, " vs ", ?workstreamB,
+                      " on ", ?sharedCapabilityArea),
+               "SHARED_RISK_AREA")
+        AS ?conflictSignal)
+    }
+}
+ORDER BY ?sharedCapabilityArea ?workstreamA ?workstreamB

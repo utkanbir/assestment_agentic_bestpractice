@@ -1,0 +1,66 @@
+---
+# S4-AA-001..008: Orchestrator Agent — Singleton deployment
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-orchestrator-config
+  namespace: aakp-agent
+data:
+  ANTHROPIC_MODEL: "claude-sonnet-4-6"
+  API_BASE_URL: "http://aakp-api.aakp-information.svc.cluster.local:8000"
+  FUSEKI_URL: "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
+  FUSEKI_DATASET: "aakp"
+  FUSEKI_USER: "admin"
+  KAFKA_BOOTSTRAP: "aakp-kafka.aakp-data.svc.cluster.local:9092"
+  KAFKA_GROUP_ID: "orchestrator-agent-group"
+  POSTGRES_URL: "postgresql://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/aakp"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-orchestrator
+  namespace: aakp-agent
+  labels:
+    app: aakp-orchestrator
+    sprint: "sprint4"
+spec:
+  # Singleton: Orchestrator is stateful (one per cluster)
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-orchestrator
+  template:
+    metadata:
+      labels:
+        app: aakp-orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: aakp/orchestrator-agent:sprint4-aa001
+          command: ["python", "-m", "agent.worker"]
+          envFrom:
+            - configMapRef:
+                name: aakp-orchestrator-config
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aakp-k8s-agent-secret
+                  key: ANTHROPIC_API_KEY
+            - name: FUSEKI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aakp-fuseki-secret
+                  key: password
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import agent.config"]
+            initialDelaySeconds: 15
+            periodSeconds: 30
