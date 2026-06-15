@@ -46,7 +46,7 @@ function Set-TaskStatus {
 3. **Sprint başında**: O sprint'in tüm task'larını `Planned` olarak işaretle (henüz başlamadıkları için)
 4. **Task ID'lerini bulmak için**: `gh project item-list 1 --owner utkanbir --format json --limit 200`
 
-### Sprint 2 Item ID'leri
+### Sprint 2 Item ID'leri (tamamlandı)
 
 | Task | Item ID |
 |------|---------|
@@ -75,6 +75,37 @@ function Set-TaskStatus {
 | S2-AA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuMVc |
 | S2-AA-005 | PVTI_lAHOAP6I-M4Bap_HzgvuMVo |
 
+### Sprint 3 Item ID'leri
+
+| Task | Item ID |
+|------|---------|
+| S3-AA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuNAs |
+| S3-AA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMYA |
+| S3-AA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMYg |
+| S3-AA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuMY4 |
+| S3-AA-005 | PVTI_lAHOAP6I-M4Bap_HzgvuMZc |
+| S3-AA-006 | PVTI_lAHOAP6I-M4Bap_HzgvuMZw |
+| S3-AA-007 | PVTI_lAHOAP6I-M4Bap_HzgvuMaM |
+| S3-AA-008 | PVTI_lAHOAP6I-M4Bap_HzgvuMaY |
+| S3-AA-009 | PVTI_lAHOAP6I-M4Bap_HzgvuMa4 |
+| S3-AA-010 | PVTI_lAHOAP6I-M4Bap_HzgvuMbQ |
+| S3-AA-011 | PVTI_lAHOAP6I-M4Bap_HzgvuMbw |
+| S3-AA-012 | PVTI_lAHOAP6I-M4Bap_HzgvuMcM |
+| S3-AA-013 | PVTI_lAHOAP6I-M4Bap_HzgvuMco |
+| S3-AA-014 | PVTI_lAHOAP6I-M4Bap_HzgvuMdE |
+| S3-BA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMd0 |
+| S3-BA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMeI |
+| S3-BA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMeg |
+| S3-BA-004 | PVTI_lAHOAP6I-M4Bap_HzgvuMfA |
+| S3-BA-005 | PVTI_lAHOAP6I-M4Bap_HzgvuMfQ |
+| S3-BA-006 | PVTI_lAHOAP6I-M4Bap_HzgvuMf8 |
+| S3-KA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMgA |
+| S3-KA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMgQ |
+| S3-KA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMgU |
+| S3-FA-001 | PVTI_lAHOAP6I-M4Bap_HzgvuMgo |
+| S3-FA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMg8 |
+| S3-FA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMhE |
+
 ## Security
 
 - `ANTHROPIC_API_KEY` asla dosyaya yazılmaz, git'e commit edilmez
@@ -84,6 +115,7 @@ function Set-TaskStatus {
 
 - Sprint1: `sprint1-fix`
 - Sprint2: `sprint2-<taskid>` (örn. `sprint2-aa002b`)
+- Sprint3: `sprint3-<taskid>` (örn. `sprint3-aa001`)
 - Init container (`alembic-migrate`) ve main container her zaman **aynı tag** kullanmalı
 - `kubectl set image deployment/aakp-api alembic-migrate=aakp/api:<tag> api=aakp/api:<tag>`
 
