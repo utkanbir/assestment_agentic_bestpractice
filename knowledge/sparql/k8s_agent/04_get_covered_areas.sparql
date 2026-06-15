@@ -1,0 +1,17 @@
+# K8s Agent: Hangi K8s alanları zaten kapsandı? (suggest_next_question için)
+# Param: ?taskUri
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX arch: <https://aakp.ai/ontology/architecture#>
+
+SELECT DISTINCT ?capability ?capabilityLabel
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?finding a aakp:Finding ;
+             aakp:identifiedInTask ?taskUri .
+  }
+  GRAPH <https://aakp.ai/graph/architecture> {
+    ?capability arch:assessedInTask ?taskUri ;
+                rdfs:label          ?capabilityLabel .
+  }
+}

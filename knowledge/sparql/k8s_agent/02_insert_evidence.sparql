@@ -1,0 +1,16 @@
+# K8s Agent: Yeni evidence kaydet
+# Params: ?evidenceUri, ?interviewUri, ?source, ?content, ?evidenceType, ?capturedAt, ?pgId
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+INSERT DATA {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?evidenceUri a aakp:InterviewEvidence ;
+                 aakp:hasSource           ?source ;
+                 aakp:content             ?content ;
+                 aakp:collectedInInterview ?interviewUri ;
+                 aakp:capturedAt          ?capturedAt ;
+                 aakp:pgId                ?pgId .
+  }
+}

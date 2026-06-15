@@ -1,0 +1,19 @@
+# K8s Agent: Yeni finding kaydet (evidence URI zorunlu — guardrail)
+# Params: ?findingUri, ?taskUri, ?evidenceUri, ?description, ?severity, ?confidence, ?pgId
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX mat:  <https://aakp.ai/ontology/maturity#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+INSERT DATA {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?findingUri a aakp:Finding ;
+                aakp:identifiedInTask      ?taskUri ;
+                aakp:supportedByEvidence   ?evidenceUri ;
+                aakp:description           ?description ;
+                mat:hasSeverity            ?severity ;
+                aakp:hasConfidence         ?confidence ;
+                aakp:approvalStatus        "pending" ;
+                aakp:pgId                  ?pgId .
+  }
+}
