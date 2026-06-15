@@ -1,6 +1,6 @@
-﻿# AAKP - Sprint 0 Deploy Script
+﻿# AAKP - Deploy Script (Sprint 0 + Sprint 1)
 # Usage: .\deploy.ps1 -Action <step>
-# Steps: repos | namespaces | rbac | data | information | knowledge | agent | gateway | monitoring | healthcheck | all
+# Steps: repos | namespaces | rbac | data | information | knowledge | agent | gateway | monitoring | services | ingress | healthcheck | all
 
 param(
     [string]$Action = "all"
@@ -106,6 +106,23 @@ function Step-Monitoring {
     Write-Info "NOTE: LangFuse deferred to Sprint 1 (requires ghcr.io auth + PostgreSQL wiring)"
 }
 
+function Step-Services {
+    Write-Step "Deploying AAKP Services (API + MCP Server + K8s Agent) -> Sprint 1"
+    Write-Info "FastAPI + MCP Server (aakp-information)..."
+    kubectl apply -f "$InfraDir\helm\information-layer\api-manifest.yaml"
+    Write-Info "Kubernetes Agent (aakp-agent)..."
+    kubectl apply -f "$InfraDir\helm\agent-layer\kubernetes-agent-manifest.yaml"
+    Write-OK "Services deployed - waiting for pods..."
+    kubectl rollout status deployment/aakp-api -n aakp-information --timeout=120s
+    kubectl rollout status deployment/aakp-kubernetes-agent -n aakp-agent --timeout=120s
+}
+
+function Step-Ingress {
+    Write-Step "Applying Kong Ingress rules"
+    kubectl apply -f "$InfraDir\gateway\kong-ingress.yaml"
+    Write-OK "Ingress rules applied - API available at http://localhost:30080/api/v1/health"
+}
+
 function Step-Healthcheck {
     Write-Step "Healthcheck - pod status"
     Write-Host ""
@@ -132,6 +149,8 @@ switch ($Action) {
     "agent"       { Step-Agent }
     "gateway"     { Step-Gateway }
     "monitoring"  { Step-Monitoring }
+    "services"    { Step-Services }
+    "ingress"     { Step-Ingress }
     "healthcheck" { Step-Healthcheck }
     "all" {
         Step-Repos
@@ -146,7 +165,13 @@ switch ($Action) {
         Step-Healthcheck
         Write-Host "`nSprint 0 complete." -ForegroundColor Green
     }
+    "sprint1" {
+        Step-Services
+        Step-Ingress
+        Step-Healthcheck
+        Write-Host "`nSprint 1 services deployed." -ForegroundColor Green
+    }
     default {
-        Write-Host "Usage: .\deploy.ps1 -Action [repos|namespaces|rbac|data|information|knowledge|agent|gateway|monitoring|healthcheck|all]"
+        Write-Host "Usage: .\deploy.ps1 -Action [repos|namespaces|rbac|data|information|knowledge|agent|gateway|monitoring|services|ingress|healthcheck|all|sprint1]"
     }
 }

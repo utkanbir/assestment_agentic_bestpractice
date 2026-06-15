@@ -1,0 +1,96 @@
+# Kong Ingress Rules — S1-DA-004
+# Routes all AAKP traffic through Kong Gateway proxy (NodePort 30080)
+#
+# Apply after services are running:
+#   kubectl apply -f infra/gateway/kong-ingress.yaml
+#
+# Test: curl http://localhost:30080/api/v1/health
+
+---
+# Strip /api prefix plugin (optional — API already has /api/v1 prefix, so no strip needed)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: cors-allow-all
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+plugin: cors
+config:
+  origins:
+    - "*"
+  methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  headers:
+    - Accept
+    - Authorization
+    - Content-Type
+  credentials: true
+  max_age: 3600
+---
+# REST API + WebSocket routing → aakp-api
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aakp-api-ingress
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+  annotations:
+    konghq.com/plugins: cors-allow-all
+    # WebSocket upgrade support
+    nginx.org/websocket-services: "aakp-api"
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-api
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: aakp-api
+                port:
+                  number: 8000
+          - path: /ws/
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-api
+                port:
+                  number: 8000
+---
+# MCP Server routing → aakp-mcp-server
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aakp-mcp-ingress
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+  annotations:
+    konghq.com/plugins: cors-allow-all
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /mcp/
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-mcp-server
+                port:
+                  number: 8080
