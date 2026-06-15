@@ -17,26 +17,6 @@ spec:
         {{- include "aakp-fuseki.labels" . | nindent 8 }}
     spec:
       serviceAccountName: aakp-sa
-      securityContext:
-        fsGroup: 9008
-      # Init container: copies TDB2 config from ConfigMap into the Fuseki data volume
-      initContainers:
-        - name: config-init
-          image: busybox:1.36
-          command:
-            - sh
-            - -c
-            - |
-              mkdir -p /fuseki/configuration /fuseki/databases /fuseki/logs /fuseki/system /fuseki/system_files
-              cp /config/aakp.ttl /fuseki/configuration/aakp.ttl
-              chown -R 9008:9008 /fuseki
-              chmod -R 755 /fuseki
-              echo "Fuseki config copied and permissions set."
-          volumeMounts:
-            - name: fuseki-data
-              mountPath: /fuseki
-            - name: fuseki-config
-              mountPath: /config
       containers:
         - name: fuseki
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -69,10 +49,15 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            - name: fuseki-data
-              mountPath: /fuseki
+            # Mount PVC only at databases dir — image's own /fuseki structure is preserved
+            - name: fuseki-databases
+              mountPath: /fuseki/databases
+            # Inject TDB2 config directly into configuration dir via subPath
+            - name: fuseki-config
+              mountPath: /fuseki/configuration/aakp.ttl
+              subPath: aakp.ttl
       volumes:
-        - name: fuseki-data
+        - name: fuseki-databases
           {{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: aakp-fuseki-data
