@@ -20,6 +20,15 @@ async def lifespan(app: FastAPI):
         await asyncio.get_event_loop().run_in_executor(None, ensure_collections)
     except Exception as exc:
         logger.warning("Qdrant collection bootstrap failed (non-fatal): %s", exc)
+
+    # Register assessment agents in Fuseki knowledge graph (S3-AA-008, idempotent)
+    try:
+        from app.services.sparql_client import sparql_client
+        result = await sparql_client.register_all_agents()
+        logger.info("Agent registry: %s", result.get("status"))
+    except Exception as exc:
+        logger.warning("Agent registry bootstrap failed (non-fatal): %s", exc)
+
     yield
 
 

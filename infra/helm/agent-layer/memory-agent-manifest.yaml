@@ -1,0 +1,46 @@
+# Assessment Memory Agent — S3-AA-014
+# Kafka consumer: finding.created + answer.submitted + interview.completed → Qdrant upsert
+# Runs in aakp-agent namespace alongside other agents
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-memory-agent
+  namespace: aakp-agent
+  labels:
+    app: aakp-memory-agent
+    app.kubernetes.io/part-of: aakp
+    aakp/agent-type: memory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-memory-agent
+  template:
+    metadata:
+      labels:
+        app: aakp-memory-agent
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      containers:
+        - name: memory-agent
+          image: aakp/memory-agent:sprint3-aa014
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: API_BASE_URL
+              value: "http://aakp-api.aakp-information.svc.cluster.local:8000"
+            - name: QDRANT_URL
+              value: "http://aakp-qdrant.aakp-information.svc.cluster.local:6333"
+            - name: KAFKA_BOOTSTRAP
+              value: "aakp-kafka.aakp-data.svc.cluster.local:9092"
+            - name: KAFKA_GROUP_ID
+              value: "memory-agent-group"
+          resources:
+            requests:
+              memory: 512Mi   # fastembed ONNX model needs ~400MB
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: 500m

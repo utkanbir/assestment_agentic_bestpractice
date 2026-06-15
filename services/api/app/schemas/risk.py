@@ -12,6 +12,13 @@ class RiskCreate(BaseModel):
     impact: str | None = None
 
 
+class RiskUpdate(BaseModel):
+    level: str | None = None
+    title: str | None = None
+    description: str | None = None
+    impact: str | None = None
+
+
 class RiskOut(BaseModel):
     model_config = {"from_attributes": True}
 

@@ -138,6 +138,76 @@ async def list_tools() -> list[Tool]:
                 "required": ["text"],
             },
         ),
+        # S3-AA-009: Flag a risk for escalation
+        Tool(
+            name="flag_risk",
+            description="Bir riski kritik olarak işaretle ve seviyesini escalate et. Acil müdahale gerektiren durumlar için kullan.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "risk_id": {"type": "string", "description": "Risk UUID"},
+                    "reason": {"type": "string", "description": "Escalation nedeni — raporlara eklenir"},
+                    "new_level": {"type": "string", "enum": ["critical", "high", "medium", "low"], "default": "critical"},
+                },
+                "required": ["risk_id", "reason"],
+            },
+        ),
+        # S3-AA-010: Generate a recommendation from a finding
+        Tool(
+            name="generate_recommendation",
+            description="Bir bulgudan somut öneri üret ve kaydet. Öneri listesine eklenir.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "finding_id": {"type": "string", "description": "Finding UUID"},
+                    "description": {"type": "string", "description": "Öneri açıklaması (eylem odaklı, Türkçe)"},
+                    "priority": {"type": "integer", "minimum": 1, "maximum": 5, "default": 2, "description": "1=en kritik, 5=düşük öncelik"},
+                    "effort": {"type": "string", "enum": ["low", "medium", "high"], "description": "Uygulama eforu tahmini"},
+                },
+                "required": ["finding_id", "description"],
+            },
+        ),
+        # S3-AA-011: Compare findings to benchmark
+        Tool(
+            name="compare_to_benchmark",
+            description="Mevcut bulgular ile geçmiş assessment benchmark'larını karşılaştır. Sektör ortalamasına göre konum belirler.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "finding_description": {"type": "string", "description": "Karşılaştırılacak bulgu metni"},
+                    "workstream": {"type": "string", "description": "Workstream filtresi (opsiyonel)"},
+                    "limit": {"type": "integer", "default": 10, "description": "Benchmark örnek sayısı"},
+                },
+                "required": ["finding_description"],
+            },
+        ),
+        # S3-AA-012: Detect contradictions between evidences
+        Tool(
+            name="detect_contradiction",
+            description="Bir task'ın kanıtları arasında çelişki tespit et. Farklı görüşmelerde çelişen cevaplar için kullan.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Task UUID"},
+                    "topic": {"type": "string", "description": "Çelişki aranacak konu (opsiyonel — tüm kanıtlarda ara)"},
+                },
+                "required": ["task_id"],
+            },
+        ),
+        # S3-AA-013: Update task status via Kafka event
+        Tool(
+            name="update_task_status",
+            description="Task durumunu güncelle. Değişiklik assessment.task.status.changed Kafka event'i yayınlar.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Task UUID"},
+                    "status": {"type": "string", "enum": ["pending", "in_progress", "completed", "failed", "cancelled"]},
+                    "note": {"type": "string", "description": "Durum değişikliği notu (opsiyonel)"},
+                },
+                "required": ["task_id", "status"],
+            },
+        ),
     ]
 
 
@@ -202,6 +272,107 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if resp.status_code == 200:
                 return [TextContent(type="text", text=resp.text)]
             return [TextContent(type="text", text=json.dumps({"error": f"Qdrant error: {resp.status_code}", "detail": resp.text}))]
+
+        # S3-AA-009: flag_risk
+        if name == "flag_risk":
+            risk_id = arguments["risk_id"]
+            reason = arguments["reason"]
+            new_level = arguments.get("new_level", "critical")
+            # Fetch current risk to prepend reason to description
+            get_resp = await client.get(f"/api/v1/risks/{risk_id}")
+            if get_resp.status_code != 200:
+                return [TextContent(type="text", text=json.dumps({"error": f"Risk not found: {risk_id}"}))]
+            current = get_resp.json()
+            flagged_desc = f"[FLAGGED: {reason}]\n{current.get('description', '')}"
+            patch_resp = await client.patch(f"/api/v1/risks/{risk_id}", json={
+                "level": new_level,
+                "description": flagged_desc,
+            })
+            if patch_resp.status_code == 200:
+                await publish("assessment.risk.flagged", {
+                    "risk_id": risk_id,
+                    "new_level": new_level,
+                    "reason": reason,
+                })
+                return [TextContent(type="text", text=patch_resp.text)]
+            return [TextContent(type="text", text=json.dumps({"error": f"PATCH failed: {patch_resp.status_code}"}))]
+
+        # S3-AA-010: generate_recommendation
+        if name == "generate_recommendation":
+            payload = {
+                "finding_id": arguments["finding_id"],
+                "description": arguments["description"],
+                "priority": arguments.get("priority", 2),
+            }
+            if arguments.get("effort"):
+                payload["effort"] = arguments["effort"]
+            resp = await client.post("/api/v1/recommendations", json=payload)
+            resp.raise_for_status()
+            return [TextContent(type="text", text=resp.text)]
+
+        # S3-AA-011: compare_to_benchmark
+        if name == "compare_to_benchmark":
+            payload = {
+                "query": arguments["finding_description"],
+                "limit": arguments.get("limit", 10),
+                "score_threshold": 0.4,  # lower threshold for broad benchmark comparison
+            }
+            resp = await client.post("/api/v1/qdrant/search/findings", json=payload)
+            if resp.status_code != 200:
+                return [TextContent(type="text", text=json.dumps({"error": "Benchmark search failed"}))]
+            results = resp.json().get("results", [])
+            # Compute severity distribution from benchmark results
+            sev_counts: dict[str, int] = {}
+            for r in results:
+                s = r.get("severity", "unknown")
+                sev_counts[s] = sev_counts.get(s, 0) + 1
+            return [TextContent(type="text", text=json.dumps({
+                "benchmark_matches": results,
+                "severity_distribution": sev_counts,
+                "total_matches": len(results),
+            }, ensure_ascii=False))]
+
+        # S3-AA-012: detect_contradiction
+        if name == "detect_contradiction":
+            task_id = arguments["task_id"]
+            topic = arguments.get("topic", "")
+            # Fetch all evidences for the task via findings endpoint
+            findings_resp = await client.get(f"/api/v1/findings?task_id={task_id}")
+            findings = findings_resp.json() if findings_resp.status_code == 200 else []
+            evidences = []
+            for f in findings[:20]:
+                ev_id = f.get("evidence_id")
+                if ev_id:
+                    ev_resp = await client.get(f"/api/v1/evidences/{ev_id}")
+                    if ev_resp.status_code == 200:
+                        ev = ev_resp.json()
+                        evidences.append({
+                            "evidence_id": ev_id,
+                            "source": ev.get("source"),
+                            "content": ev.get("content", "")[:300],
+                            "finding_severity": f.get("severity"),
+                        })
+            return [TextContent(type="text", text=json.dumps({
+                "task_id": task_id,
+                "topic_filter": topic,
+                "evidences": evidences,
+                "instruction": (
+                    "Bu kanıtları karşılaştır ve çelişen ifadeleri tespit et. "
+                    "Aynı konuda farklı severity veya zıt içerik varsa belirt."
+                ),
+            }, ensure_ascii=False))]
+
+        # S3-AA-013: update_task_status
+        if name == "update_task_status":
+            task_id = arguments["task_id"]
+            new_status = arguments["status"]
+            patch_body: dict = {"status": new_status}
+            if arguments.get("note"):
+                patch_body["note"] = arguments["note"]
+            resp = await client.patch(f"/api/v1/tasks/{task_id}", json=patch_body)
+            if resp.status_code == 200:
+                return [TextContent(type="text", text=resp.text)]
+            return [TextContent(type="text", text=json.dumps({"error": f"Update failed: {resp.status_code}"}))]
 
     return [TextContent(type="text", text=json.dumps({"error": f"Unknown tool: {name}"}))]
 

@@ -439,6 +439,49 @@ ORDER BY ?capability ?inferredConfidence DESC(?findingConfidence)
 """)
         return result.get("results", {}).get("bindings", [])
 
+    # ── Agent Registry (S3-AA-008) ───────────────────────────────────────────
+
+    async def register_all_agents(self) -> dict:
+        """Load agent registry SPARQL file and upsert all 8 agents into
+        https://aakp.ai/graph/agents. Idempotent — INSERT DATA into named graph
+        will overwrite existing triples on re-run thanks to SPARQL graph semantics."""
+        registry_file = Path(__file__).parent.parent.parent.parent.parent.parent / \
+            "knowledge" / "sparql" / "agent_registry" / "register_agents.sparql"
+        # When running inside container, the SPARQL file is at /app/knowledge/...
+        # Fall back to bundled copy if absolute path fails
+        bundled = Path(__file__).parent.parent / "sparql" / "agent_registry" / "register_agents.sparql"
+        sparql_path = bundled if bundled.exists() else registry_file
+
+        if not sparql_path.exists():
+            return {"status": "error", "detail": f"Registry file not found: {sparql_path}"}
+        sparql = sparql_path.read_text(encoding="utf-8")
+        lines = [l for l in sparql.splitlines() if not l.strip().startswith("#")]
+        clean = "\n".join(lines)
+        try:
+            await self.update(clean)
+            return {"status": "ok", "graph": "https://aakp.ai/graph/agents"}
+        except Exception as exc:
+            return {"status": "error", "detail": str(exc)}
+
+    async def list_agents(self) -> list[dict]:
+        """Return all registered assessment agents from the agents graph."""
+        result = await self.query("""
+SELECT ?agent ?agentId ?workstream ?displayName ?description ?isActive ?version
+WHERE {
+  GRAPH <https://aakp.ai/graph/agents> {
+    ?agent a aakp:AssessmentAgent .
+    OPTIONAL { ?agent aakp:hasAgentId     ?agentId }
+    OPTIONAL { ?agent aakp:hasWorkstream  ?workstream }
+    OPTIONAL { ?agent aakp:hasDisplayName ?displayName }
+    OPTIONAL { ?agent aakp:hasDescription ?description }
+    OPTIONAL { ?agent aakp:isActive       ?isActive }
+    OPTIONAL { ?agent aakp:hasVersion     ?version }
+  }
+}
+ORDER BY ?workstream
+""")
+        return result.get("results", {}).get("bindings", [])
+
     # ── SHACL Validation (S2-KA-002) ─────────────────────────────────────────
 
     async def validate_shacl(self, graph_uri: str | None = None) -> dict:

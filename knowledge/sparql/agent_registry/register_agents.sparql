@@ -1,0 +1,87 @@
+# AAKP Agent Registry — S3-AA-008
+# SPARQL INSERT to register all 8 assessment agents into Fuseki
+# Named graph: https://aakp.ai/graph/agents
+# Run once at API startup via sparql_client.register_all_agents()
+
+PREFIX aakp: <https://aakp.ai/ontology/assessment#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+PREFIX d:    <https://aakp.ai/data/>
+
+INSERT DATA {
+  GRAPH <https://aakp.ai/graph/agents> {
+
+    d:agent/kubernetes-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "kubernetes-agent" ;
+        aakp:hasWorkstream   "kubernetes" ;
+        aakp:hasDisplayName  "Kubernetes Assessment Agent" ;
+        aakp:hasDescription  "K8s küme mimarisi, güvenlik, HA ve observability değerlendirmesi" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/cloud-strategy-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "cloud-strategy-agent" ;
+        aakp:hasWorkstream   "cloud_strategy" ;
+        aakp:hasDisplayName  "Cloud Strategy Agent" ;
+        aakp:hasDescription  "Kurumsal cloud dönüşüm vizyonu, FinOps ve platform seçimi değerlendirmesi" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/ingestion-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "ingestion-agent" ;
+        aakp:hasWorkstream   "ingestion" ;
+        aakp:hasDisplayName  "Data Ingestion Agent" ;
+        aakp:hasDescription  "NiFi, Kafka, DataStage — gerçek zamanlı ve batch ingestion olgunluğu" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/teradata-dr-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "teradata-dr-agent" ;
+        aakp:hasWorkstream   "teradata_dr" ;
+        aakp:hasDisplayName  "Teradata DR Agent" ;
+        aakp:hasDescription  "Teradata Vantage disaster recovery, backup ve iş sürekliliği değerlendirmesi" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/lakehouse-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "lakehouse-agent" ;
+        aakp:hasWorkstream   "lakehouse" ;
+        aakp:hasDisplayName  "Lakehouse Agent" ;
+        aakp:hasDescription  "Databricks Delta Lake — mimari, yönetişim ve ML platform olgunluğu" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/governance-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "governance-agent" ;
+        aakp:hasWorkstream   "governance" ;
+        aakp:hasDescription  "OpenMetadata üzerinden veri sahipliği, kalitesi, lineage ve politika yönetimi" ;
+        aakp:hasDisplayName  "Data Governance Agent" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/data-product-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "data-product-agent" ;
+        aakp:hasWorkstream   "data_product" ;
+        aakp:hasDisplayName  "Data Product Agent" ;
+        aakp:hasDescription  "Veri ürünü tanımı, SLA yönetimi ve self-serve analytics değerlendirmesi" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+    d:agent/cdp-agent
+        a aakp:AssessmentAgent ;
+        aakp:hasAgentId      "cdp-agent" ;
+        aakp:hasWorkstream   "cdp" ;
+        aakp:hasDisplayName  "CDP Agent" ;
+        aakp:hasDescription  "Salesforce CDP kimlik çözümleme, segmentasyon ve aktivasyon değerlendirmesi" ;
+        aakp:isActive        true ;
+        aakp:hasVersion      "sprint3" .
+
+  }
+}
