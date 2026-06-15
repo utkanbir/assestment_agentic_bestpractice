@@ -20,7 +20,6 @@ function Step-Repos {
     helm repo add qdrant               https://qdrant.github.io/qdrant-helm
     helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
     helm repo add grafana              https://grafana.github.io/helm-charts
-    helm repo add langfuse             https://langfuse.com/helm/charts
     helm repo update
     Write-OK "Helm repos ready"
 }
@@ -111,7 +110,7 @@ function Step-Monitoring {
         -f "$InfraDir\helm\monitoring\tempo-values.yaml" `
         --wait --timeout 5m
     Write-Info "LangFuse (LLM observability)..."
-    helm upgrade --install aakp-langfuse langfuse/langfuse `
+    helm upgrade --install aakp-langfuse oci://ghcr.io/langfuse/langfuse-helm/langfuse `
         -n aakp-monitoring `
         -f "$InfraDir\helm\monitoring\langfuse-values.yaml" `
         --wait --timeout 5m
@@ -162,3 +161,4 @@ switch ($Action) {
         Write-Host "Usage: .\deploy.ps1 -Action [repos|namespaces|rbac|data|information|knowledge|agent|gateway|monitoring|healthcheck|all]"
     }
 }
+
