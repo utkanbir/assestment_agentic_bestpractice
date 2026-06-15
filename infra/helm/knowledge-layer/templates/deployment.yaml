@@ -27,9 +27,11 @@ spec:
             - sh
             - -c
             - |
-              mkdir -p /fuseki/configuration
+              mkdir -p /fuseki/configuration /fuseki/databases /fuseki/logs /fuseki/system /fuseki/system_files
               cp /config/aakp.ttl /fuseki/configuration/aakp.ttl
-              echo "Fuseki config copied."
+              chown -R 9008:9008 /fuseki
+              chmod -R 755 /fuseki
+              echo "Fuseki config copied and permissions set."
           volumeMounts:
             - name: fuseki-data
               mountPath: /fuseki
