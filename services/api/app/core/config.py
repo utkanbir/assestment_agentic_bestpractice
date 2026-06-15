@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     fuseki_url: str = "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
     fuseki_dataset: str = "aakp"
     qdrant_url: str = "http://aakp-qdrant.aakp-information.svc.cluster.local:6333"
+    openmetadata_url: str = "http://aakp-openmetadata.aakp-information.svc.cluster.local:8585"
 
 
 settings = Settings()

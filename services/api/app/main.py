@@ -29,6 +29,14 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Agent registry bootstrap failed (non-fatal): %s", exc)
 
+    # Register AssessmentFinding custom entity type in OpenMetadata (S3-BA-002, idempotent)
+    try:
+        from app.services.openmetadata_client import ensure_custom_type
+        await ensure_custom_type()
+        logger.info("OpenMetadata custom type registration attempted")
+    except Exception as exc:
+        logger.warning("OpenMetadata bootstrap failed (non-fatal): %s", exc)
+
     yield
 
 
