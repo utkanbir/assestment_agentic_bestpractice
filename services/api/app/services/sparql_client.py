@@ -79,6 +79,66 @@ class SPARQLClient:
             )
             resp.raise_for_status()
 
+    # ── Assessment / Task / Interview ─────────────────────────────────────────
+
+    async def insert_assessment(self, assessment_id: uuid.UUID,
+                                 client_name: str, project_name: str) -> str:
+        uri = _assessment_uri(assessment_id)
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Assessment ;
+             aakp:hasClientName  "{_escape(client_name)}" ;
+             aakp:hasProjectName "{_escape(project_name)}" ;
+             aakp:pgId           "{assessment_id}" .
+  }}
+}}
+""")
+        return uri
+
+    async def insert_task(self, task_id: uuid.UUID, assessment_id: uuid.UUID,
+                           agent_type: str, workstream: str,
+                           scope: str | None = None) -> str:
+        uri = _uri("task", task_id)
+        scope_triple = (
+            f'<{uri}> aakp:hasScope "{_escape(scope)}" .'
+            if scope else ""
+        )
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Task ;
+             aakp:belongsToAssessment <{_assessment_uri(assessment_id)}> ;
+             aakp:hasAgentType        "{_escape(agent_type)}" ;
+             aakp:hasWorkstream       "{_escape(workstream)}" ;
+             aakp:pgId                "{task_id}" .
+    {scope_triple}
+  }}
+}}
+""")
+        return uri
+
+    async def insert_interview(self, interview_id: uuid.UUID, task_id: uuid.UUID,
+                                interviewee_name: str,
+                                interviewee_role: str | None = None) -> str:
+        uri = _interview_uri(interview_id)
+        role_triple = (
+            f'<{uri}> aakp:intervieweeRole "{_escape(interviewee_role)}" .'
+            if interviewee_role else ""
+        )
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Interview ;
+             aakp:conductedForTask  <{_task_uri(task_id)}> ;
+             aakp:intervieweeName   "{_escape(interviewee_name)}" ;
+             aakp:pgId              "{interview_id}" .
+    {role_triple}
+  }}
+}}
+""")
+        return uri
+
     # ── Evidence ──────────────────────────────────────────────────────────────
 
     async def insert_evidence(self, evidence_id: uuid.UUID, interview_id: uuid.UUID | None,
