@@ -1,9 +1,16 @@
 # AAKP Handoff Dokümanı
 
 **Tarih:** 2026-06-17  
-**Mevcut branch:** `sprint-7/ui-and-tests` (isim yanıltıcı — Sprint 8-11 kodu burada, hiç commit edilmedi)  
-**Son commit:** Sprint 8 (`4679c5b`)  
-**Deploy durumu:** Sprint 11 kodu K8s'de canlı, ama git'te yok.
+**Mevcut branch:** `sprint-7/ui-and-tests` (isim yanıltıcı — Sprint 8-11 kodu burada)  
+**Son commit:** Sprint 9-11 (`eae2b03`) — 45 dosya, 5285 ekleme  
+**Deploy durumu:** Sprint 11 kodu K8s'de canlı ve git'te commit edildi.
+
+### Commit Geçmişi
+```
+eae2b03  Sprint 9-11: Interview Room, LLM intelligence, Agent Yönetimi, RAG pipeline
+4679c5b  Sprint 8: maturity scores, enriched approvals, question bank, frontend forms, E2E tests
+b1710ef  Sprint 7: UI Polish + E2E Tests (18 tasks)
+```
 
 ---
 
@@ -27,22 +34,9 @@
 
 ## Şu An Yarım Kalan / Dikkat Gerektiren
 
-### 1. GİT'E HİÇBİR ŞEY COMMIT EDİLMEDİ (S9-S11)
-`git status` çıktısına göre Sprint 9-11 arasındaki tüm değişiklik uncommitted. Canlıda çalışıyor ama kayıp riski var.
-
-Commit edilmesi gerekenler (yeni dosyalar):
-- `services/api/alembic/versions/0007_add_question_approval_status.py`
-- `services/api/alembic/versions/0008_add_answer_evaluation.py`
-- `services/api/alembic/versions/0009_add_knowledge_documents.py`
-- `services/api/app/models/knowledge.py`
-- `services/api/app/routers/agent_mgmt.py`
-- `services/api/app/services/llm_client.py`
-- `services/frontend/src/pages/AjanYonetimi.tsx`
-- `services/frontend/src/pages/InterviewRoom.tsx`
-- `services/frontend/src/pages/QuestionManagement.tsx`
-- `tests/test_07_sprint9.py`
-- `tests/test_08_sprint10.py`
-- `scripts/fuseki_upload_ontology.ps1`
+### 1. ~~GİT'E HİÇBİR ŞEY COMMIT EDİLMEDİ (S9-S11)~~ ✅ TAMAMLANDI
+`eae2b03` commit'i ile 45 dosya, Sprint 9-11 arası tüm değişiklik commit edildi (2026-06-17).
+Branch: `sprint-7/ui-and-tests` — henüz main'e merge edilmedi.
 
 ### 2. Sprint 11 E2E Testi Yok
 `tests/test_09_sprint11.py` hiç oluşturulmadı. Test edilmesi gereken endpointler:
