@@ -1,0 +1,84 @@
+---
+# S6-DA-005: LangFuse deploy + PostgreSQL konfigurasyonu
+apiVersion: v1
+kind: Secret
+metadata:
+  name: langfuse-secret
+  namespace: aakp-monitoring
+type: Opaque
+stringData:
+  NEXTAUTH_SECRET: "aakp-langfuse-nextauth-2026"
+  SALT: "aakp-langfuse-salt-2026"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-langfuse
+  namespace: aakp-monitoring
+  labels:
+    app: aakp-langfuse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-langfuse
+  template:
+    metadata:
+      labels:
+        app: aakp-langfuse
+    spec:
+      initContainers:
+        - name: langfuse-migrate
+          image: langfuse/langfuse:3.22.0
+          command: ["node", "packages/shared/scripts/migrate.js"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/langfuse"
+      containers:
+        - name: langfuse
+          image: langfuse/langfuse:3.22.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://aakp:aakp-pg-secret@aakp-postgresql.aakp-information.svc.cluster.local:5432/langfuse"
+            - name: NEXTAUTH_URL
+              value: "http://aakp-langfuse.aakp-monitoring.svc.cluster.local:3000"
+            - name: NEXTAUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secret
+                  key: NEXTAUTH_SECRET
+            - name: SALT
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secret
+                  key: SALT
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES
+              value: "true"
+          livenessProbe:
+            httpGet:
+              path: /api/public/health
+              port: 3000
+            initialDelaySeconds: 30
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-langfuse
+  namespace: aakp-monitoring
+spec:
+  selector:
+    app: aakp-langfuse
+  ports:
+    - port: 3000
+      targetPort: 3000

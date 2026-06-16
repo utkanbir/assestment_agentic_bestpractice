@@ -15,6 +15,7 @@ import uuid
 
 from app.core.database import AsyncSessionLocal
 from app.services.sparql_client import sparql_client
+from app.core.metrics import kg_writes_total  # S6-BA-001
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ async def write_assessment(assessment_id: uuid.UUID,
     try:
         uri = await sparql_client.insert_assessment(assessment_id, client_name, project_name)
         await _store_kg_uri("assessments", assessment_id, uri)
+        kg_writes_total.labels(entity_type="assessment").inc()
     except Exception as exc:
         logger.warning("KG write failed for assessment %s: %s", assessment_id, exc)
 

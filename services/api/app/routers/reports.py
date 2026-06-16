@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.models.finding import Report
 from app.schemas.report import ReportCreate, ReportOut
 from app.services.output_validator import validate_evidence_chain, anonymize_report_pii
+from app.core.metrics import evidence_coverage_score  # S6-BA-002
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -21,6 +22,13 @@ async def create_report(
 
     # S5-BA-002: evidence chain guard
     validation = await validate_evidence_chain(str(data.get("assessment_id", "")), db)
+    total = validation["total_findings"]
+    covered = total - len(validation["uncovered_findings"])
+    if total > 0:
+        # S6-BA-002: record evidence coverage as Prometheus gauge
+        evidence_coverage_score.labels(assessment_id=str(data.get("assessment_id", ""))).set(
+            covered / total
+        )
     if not validation["valid"]:
         raise HTTPException(
             status_code=422,

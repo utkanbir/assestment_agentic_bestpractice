@@ -1,0 +1,127 @@
+---
+# S6-FA-007: Grafana Alerting — 0 tolerance kural tanımı
+# S6-FA-008: Grafana Alerting — evidence coverage < 80% uyarısı
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alert-rules
+  namespace: aakp-monitoring
+  labels:
+    grafana_alert: "true"
+data:
+  aakp-alert-rules.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: AAKP Zero-Tolerance Rules
+        folder: AAKP Alerts
+        interval: 1m
+        rules:
+
+          # S6-FA-007a: Recommendation without evidence (0 tolerance)
+          - uid: aakp-alert-rec-no-evidence
+            title: "Recommendation Without Evidence"
+            condition: C
+            data:
+              - refId: A
+                datasourceUid: prometheus
+                model:
+                  expr: increase(aakp_recommendation_without_evidence_total[5m])
+                  intervalMs: 60000
+                  maxDataPoints: 43200
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  conditions:
+                    - evaluator:
+                        params: [0]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+            noDataState: OK
+            execErrState: Alerting
+            for: 0s
+            annotations:
+              summary: "Recommendation created without evidence — 0 tolerance violation"
+              description: "{{ $values.A.Value }} recommendation(s) detected without linked evidence in last 5 min"
+            labels:
+              severity: critical
+              team: aakp
+
+          # S6-FA-007b: Guardrail violation spike
+          - uid: aakp-alert-guardrail-spike
+            title: "Guardrail Violation Spike"
+            condition: C
+            data:
+              - refId: A
+                datasourceUid: prometheus
+                model:
+                  expr: increase(aakp_guardrail_violations_total[5m])
+                  intervalMs: 60000
+                  maxDataPoints: 43200
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  conditions:
+                    - evaluator:
+                        params: [5]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+            noDataState: OK
+            execErrState: Alerting
+            for: 2m
+            annotations:
+              summary: "High number of PII guardrail violations"
+              description: "{{ $values.A.Value }} violations in last 5 minutes"
+            labels:
+              severity: high
+              team: aakp
+
+          # S6-FA-008: Evidence coverage below 80%
+          - uid: aakp-alert-evidence-coverage
+            title: "Low Evidence Coverage"
+            condition: C
+            data:
+              - refId: A
+                datasourceUid: prometheus
+                model:
+                  expr: min(aakp_evidence_coverage_score) < 0.8
+                  intervalMs: 60000
+                  maxDataPoints: 43200
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  type: threshold
+                  conditions:
+                    - evaluator:
+                        params: [0]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+            noDataState: OK
+            execErrState: Alerting
+            for: 5m
+            annotations:
+              summary: "Evidence coverage below 80% threshold"
+              description: "Min evidence coverage: {{ $values.A.Value | printf \"%.0f%%\" }} — findings may lack supporting evidence"
+            labels:
+              severity: warning
+              team: aakp

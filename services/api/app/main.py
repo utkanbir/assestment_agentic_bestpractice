@@ -2,14 +2,19 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+from app.core.logging_config import configure_logging
+configure_logging()  # S6-BA-007: JSON structured logging from process start
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.metrics import metrics_app  # S6-BA-001
 from app.routers import assessments, health, interviews, knowledge, qdrant, question_bank, recommendations, reports, risks, tasks, ws
 from app.routers.findings import evidence_router, finding_router
 from app.routers import orchestrator, approvals
 from app.middleware.guardrails import PIIGuardrailMiddleware
+from app.middleware.tracing import setup_tracing  # S6-BA-006
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +48,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
+
+setup_tracing(app)  # S6-BA-006: OpenTelemetry distributed tracing
+app.mount("/metrics", metrics_app)  # S6-BA-001: Prometheus metrics endpoint
 
 app.add_middleware(PIIGuardrailMiddleware)  # S5-BA-001: PII input guardrail
 app.add_middleware(
