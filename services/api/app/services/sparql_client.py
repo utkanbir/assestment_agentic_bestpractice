@@ -445,20 +445,24 @@ ORDER BY ?capability ?inferredConfidence DESC(?findingConfidence)
         """Load agent registry SPARQL file and upsert all 8 agents into
         https://aakp.ai/graph/agents. Idempotent — INSERT DATA into named graph
         will overwrite existing triples on re-run thanks to SPARQL graph semantics."""
-        registry_file = Path(__file__).parent.parent.parent.parent.parent.parent / \
-            "knowledge" / "sparql" / "agent_registry" / "register_agents.sparql"
-        # When running inside container, the SPARQL file is at /app/knowledge/...
-        # Fall back to bundled copy if absolute path fails
-        bundled = Path(__file__).parent.parent / "sparql" / "agent_registry" / "register_agents.sparql"
-        sparql_path = bundled if bundled.exists() else registry_file
-
-        if not sparql_path.exists():
-            return {"status": "error", "detail": f"Registry file not found: {sparql_path}"}
-        sparql = sparql_path.read_text(encoding="utf-8")
-        lines = [l for l in sparql.splitlines() if not l.strip().startswith("#")]
-        clean = "\n".join(lines)
         try:
-            await self.update(clean)
+            bundled = Path(__file__).parent.parent / "sparql" / "agent_registry" / "register_agents.sparql"
+            sparql_path = bundled if bundled.exists() else None
+            if sparql_path is None or not sparql_path.exists():
+                return {"status": "error", "detail": "Registry SPARQL file not found in bundle"}
+            sparql = sparql_path.read_text(encoding="utf-8")
+            lines = [l for l in sparql.splitlines() if not l.strip().startswith("#")]
+            clean = "\n".join(lines)
+            # Post raw SPARQL directly — file already contains all required PREFIX declarations.
+            # Do NOT call self.update() which prepends _PREFIXES causing duplicate declarations.
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    self._update_url,
+                    data={"update": clean},
+                    auth=self._auth,
+                    timeout=30,
+                )
+                resp.raise_for_status()
             return {"status": "ok", "graph": "https://aakp.ai/graph/agents"}
         except Exception as exc:
             return {"status": "error", "detail": str(exc)}

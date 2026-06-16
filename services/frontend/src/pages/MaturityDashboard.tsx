@@ -1,23 +1,15 @@
-// S7-FA-004: Maturity dashboard — capability × dimension ısı haritası
+// S7-FA-004: Maturity dashboard — workstream olgunluk skorları (S8-BA-001 API)
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fetchJSON } from "../api";
+import { getMaturityScores, upsertMaturityScore, MaturityScoreItem, WORKSTREAMS } from "../api";
 
-interface MaturityScore {
-  capability_area: string;
-  dimension: string;
-  score: number;         // 0.0 – 5.0
-  max_score: number;
-  workstream: string;
-}
-
-const DIMENSIONS = ["People", "Process", "Technology", "Data", "Governance"];
-
-const CAPABILITY_AREAS = [
-  "Data Ingestion", "Data Storage", "Data Processing",
-  "Data Quality", "Data Governance", "Data Security",
-  "Analytics", "Platform Operations",
-];
+const LEVEL_LABELS: Record<string, { label: string; color: string }> = {
+  initial:    { label: "Başlangıç",  color: "#dc2626" },
+  developing: { label: "Gelişmekte", color: "#ea580c" },
+  defined:    { label: "Tanımlı",    color: "#ca8a04" },
+  managed:    { label: "Yönetilen",  color: "#65a30d" },
+  optimizing: { label: "Optimize",   color: "#16a34a" },
+};
 
 function scoreColor(score: number): string {
   if (score >= 4) return "#16a34a";
@@ -27,80 +19,141 @@ function scoreColor(score: number): string {
   return "#dc2626";
 }
 
-function HeatCell({ score, max }: { score: number | undefined; max: number }) {
-  if (score === undefined) {
-    return (
-      <td style={{
-        width: 72, height: 52,
-        background: "#1e293b",
-        border: "1px solid #334155",
-        textAlign: "center",
-        verticalAlign: "middle",
-        fontSize: 11,
-        color: "#475569",
-      }}>—</td>
-    );
-  }
-  const pct = score / max;
-  const bg = scoreColor(score);
+function WorkstreamRow({
+  ws,
+  score,
+  onSave,
+}: {
+  ws: typeof WORKSTREAMS[number];
+  score: MaturityScoreItem | undefined;
+  onSave: (workstream: string, s: number, level: string, notes: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(score?.score?.toString() ?? "2.0");
+  const [level, setLevel] = useState(score?.maturity_level ?? "initial");
+  const [notes, setNotes] = useState(score?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(ws.id, parseFloat(val), level, notes);
+      setEditing(false);
+    } finally { setSaving(false); }
+  };
+
+  const pct = score ? (score.score / 5) * 100 : 0;
+  const color = score ? scoreColor(score.score) : "#334155";
+
   return (
-    <td
-      title={`${score.toFixed(1)} / ${max}`}
-      style={{
-        width: 72, height: 52,
-        background: bg + Math.round(pct * 200 + 30).toString(16).padStart(2, "0"),
-        border: "1px solid #0f1117",
-        textAlign: "center",
-        verticalAlign: "middle",
-        cursor: "default",
-        transition: "opacity 0.15s",
-      }}
-    >
-      <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{score.toFixed(1)}</div>
-      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)" }}>{(pct * 100).toFixed(0)}%</div>
-    </td>
+    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "12px 16px", marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: editing ? 12 : 0 }}>
+        <span style={{ fontSize: 22 }}>{ws.icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{ws.label}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {score && (
+                <span style={{
+                  background: LEVEL_LABELS[score.maturity_level]?.color + "22",
+                  color: LEVEL_LABELS[score.maturity_level]?.color ?? "#94a3b8",
+                  border: `1px solid ${LEVEL_LABELS[score.maturity_level]?.color ?? "#334155"}44`,
+                  borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600,
+                }}>
+                  {LEVEL_LABELS[score.maturity_level]?.label ?? score.maturity_level}
+                </span>
+              )}
+              <span style={{ fontSize: 16, fontWeight: 800, color: score ? scoreColor(score.score) : "#475569" }}>
+                {score ? score.score.toFixed(1) : "—"} <span style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>/ 5</span>
+              </span>
+              <button
+                onClick={() => setEditing((v) => !v)}
+                style={{
+                  background: editing ? "#334155" : "transparent",
+                  border: "1px solid #334155", borderRadius: 6,
+                  padding: "3px 10px", color: "#94a3b8", cursor: "pointer", fontSize: 11,
+                }}
+              >
+                {editing ? "Kapat" : score ? "Düzenle" : "Gir"}
+              </button>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div style={{ height: 6, background: "#0f1117", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
+          </div>
+          {score?.notes && <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{score.notes}</p>}
+        </div>
+      </div>
+
+      {editing && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 100 }}>
+            <label style={{ fontSize: 10, color: "#64748b" }}>Skor (0-5)</label>
+            <input type="number" min="0" max="5" step="0.5" value={val}
+              onChange={(e) => setVal(e.target.value)}
+              style={{ background: "#0f1117", border: "1px solid #334155", borderRadius: 6, padding: "5px 8px", color: "#e2e8f0", fontSize: 13, width: 80 }} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+            <label style={{ fontSize: 10, color: "#64748b" }}>Olgunluk Seviyesi</label>
+            <select value={level} onChange={(e) => setLevel(e.target.value)}
+              style={{ background: "#0f1117", border: "1px solid #334155", borderRadius: 6, padding: "5px 8px", color: "#e2e8f0", fontSize: 13 }}>
+              {Object.entries(LEVEL_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 2 }}>
+            <label style={{ fontSize: 10, color: "#64748b" }}>Not</label>
+            <input placeholder="Opsiyonel not…" value={notes} onChange={(e) => setNotes(e.target.value)}
+              style={{ background: "#0f1117", border: "1px solid #334155", borderRadius: 6, padding: "5px 8px", color: "#e2e8f0", fontSize: 13 }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end" }}>
+            <button onClick={handleSave} disabled={saving}
+              style={{ background: "#3b82f6", border: "none", borderRadius: 6, padding: "6px 14px", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: saving ? 0.6 : 1 }}>
+              {saving ? "…" : "Kaydet"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function MaturityDashboard() {
   const [searchParams] = useSearchParams();
   const assessmentId = searchParams.get("assessment_id") ?? "";
-  const [scores, setScores] = useState<MaturityScore[]>([]);
+  const [scores, setScores] = useState<MaturityScoreItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = () => {
     if (!assessmentId) { setLoading(false); return; }
-    fetchJSON<MaturityScore[]>(`/assessments/${assessmentId}/maturity`)
+    getMaturityScores(assessmentId)
       .then(setScores)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [assessmentId]);
+  };
 
-  // Build lookup: capability → dimension → score
-  const lookup: Record<string, Record<string, number>> = {};
-  for (const s of scores) {
-    if (!lookup[s.capability_area]) lookup[s.capability_area] = {};
-    lookup[s.capability_area][s.dimension] = s.score;
-  }
+  useEffect(() => { load(); }, [assessmentId]);
 
-  // Dynamic rows/cols from actual data or fallbacks
-  const capabilities = scores.length
-    ? [...new Set(scores.map((s) => s.capability_area))]
-    : CAPABILITY_AREAS;
-  const dimensions = scores.length
-    ? [...new Set(scores.map((s) => s.dimension))]
-    : DIMENSIONS;
+  const scoreByWs = Object.fromEntries(scores.map((s) => [s.workstream, s]));
+  const avgScore = scores.length ? scores.reduce((a, s) => a + s.score, 0) / scores.length : 0;
+  const covered = scores.length;
 
-  const avgScore = scores.length
-    ? scores.reduce((a, s) => a + s.score, 0) / scores.length
-    : 0;
+  const handleSave = async (workstream: string, score: number, maturity_level: string, notes: string) => {
+    if (!assessmentId) return;
+    const updated = await upsertMaturityScore(assessmentId, workstream, { score, maturity_level, notes: notes || undefined });
+    setScores((prev) => {
+      const idx = prev.findIndex((s) => s.workstream === workstream);
+      if (idx >= 0) { const next = [...prev]; next[idx] = updated; return next; }
+      return [...prev, updated];
+    });
+  };
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ maxWidth: 800, margin: "0 auto" }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Olgunluk Matrisi</h1>
         <p style={{ color: "#94a3b8", fontSize: 14 }}>
-          Yetenek alanı × Boyut ısı haritası
+          Workstream bazlı olgunluk skorları (1–5)
           {assessmentId && ` — ${assessmentId.slice(0, 8)}…`}
         </p>
       </div>
@@ -108,97 +161,43 @@ export default function MaturityDashboard() {
       {!assessmentId ? (
         <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
           <p style={{ fontSize: 36, marginBottom: 12 }}>📊</p>
-          <p>Assessment seçilmedi. Genel Bakış'tan bir proje seçin.</p>
+          <p>Assessment seçilmedi. URL'ye ?assessment_id= ekleyin.</p>
         </div>
       ) : loading ? (
         <p style={{ textAlign: "center", color: "#64748b", padding: 40 }}>Yükleniyor…</p>
       ) : (
         <>
-          {/* Summary stats */}
+          {/* Summary */}
           <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
             {[
-              { label: "Ortalama Skor", value: avgScore.toFixed(2), color: scoreColor(avgScore) },
-              { label: "Değerlendirilen Alan", value: capabilities.length, color: "#60a5fa" },
-              { label: "Boyut Sayısı", value: dimensions.length, color: "#a78bfa" },
-              { label: "Toplam Ölçüm", value: scores.length, color: "#34d399" },
+              { label: "Ortalama Skor", value: covered > 0 ? avgScore.toFixed(2) : "—", color: covered > 0 ? scoreColor(avgScore) : "#475569" },
+              { label: "Değerlendirilen WS", value: `${covered} / ${WORKSTREAMS.length}`, color: "#60a5fa" },
+              { label: "En Düşük", value: scores.length ? Math.min(...scores.map((s) => s.score)).toFixed(1) : "—", color: "#f97316" },
+              { label: "En Yüksek", value: scores.length ? Math.max(...scores.map((s) => s.score)).toFixed(1) : "—", color: "#22c55e" },
             ].map((s) => (
-              <div key={s.label} style={{
-                flex: 1, background: "#1e293b", border: "1px solid #334155",
-                borderRadius: 8, padding: "12px 16px",
-              }}>
+              <div key={s.label} style={{ flex: 1, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "12px 16px" }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
                 <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
           </div>
 
-          {/* Heat map table */}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ borderCollapse: "collapse", width: "100%" }}>
-              <thead>
-                <tr>
-                  <th style={{
-                    padding: "8px 12px", fontSize: 12, color: "#64748b",
-                    borderBottom: "1px solid #334155", textAlign: "left", minWidth: 160,
-                  }}>
-                    Yetenek Alanı
-                  </th>
-                  {dimensions.map((d) => (
-                    <th key={d} style={{
-                      padding: "8px 8px", fontSize: 11, color: "#94a3b8",
-                      borderBottom: "1px solid #334155", textAlign: "center", width: 72,
-                    }}>
-                      {d}
-                    </th>
-                  ))}
-                  <th style={{
-                    padding: "8px 8px", fontSize: 11, color: "#94a3b8",
-                    borderBottom: "1px solid #334155", textAlign: "center", width: 72,
-                  }}>
-                    Ort.
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {capabilities.map((cap) => {
-                  const row = lookup[cap] ?? {};
-                  const rowScores = dimensions.map((d) => row[d]).filter((v) => v !== undefined) as number[];
-                  const rowAvg = rowScores.length ? rowScores.reduce((a, b) => a + b, 0) / rowScores.length : undefined;
-                  return (
-                    <tr key={cap}>
-                      <td style={{
-                        padding: "8px 12px", fontSize: 12, color: "#e2e8f0",
-                        borderBottom: "1px solid #1e293b",
-                      }}>
-                        {cap}
-                      </td>
-                      {dimensions.map((d) => (
-                        <HeatCell key={d} score={row[d]} max={5} />
-                      ))}
-                      {rowAvg !== undefined
-                        ? <HeatCell score={rowAvg} max={5} />
-                        : <td style={{ textAlign: "center", fontSize: 11, color: "#475569" }}>—</td>
-                      }
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* Workstream rows */}
+          {WORKSTREAMS.map((ws) => (
+            <WorkstreamRow
+              key={ws.id}
+              ws={ws}
+              score={scoreByWs[ws.id]}
+              onSave={handleSave}
+            />
+          ))}
 
           {/* Legend */}
-          <div style={{ display: "flex", gap: 16, marginTop: 16, alignItems: "center" }}>
-            <span style={{ fontSize: 12, color: "#64748b" }}>Skor:</span>
-            {[
-              { label: "0–1 Başlangıç", color: "#dc2626" },
-              { label: "1–2 Gelişmekte", color: "#ea580c" },
-              { label: "2–3 Tanımlı", color: "#ca8a04" },
-              { label: "3–4 Yönetilen", color: "#65a30d" },
-              { label: "4–5 Optimize", color: "#16a34a" },
-            ].map((l) => (
-              <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div style={{ width: 12, height: 12, borderRadius: 2, background: l.color }} />
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{l.label}</span>
+          <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+            {Object.entries(LEVEL_LABELS).map(([k, v]) => (
+              <div key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: v.color }} />
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{v.label}</span>
               </div>
             ))}
           </div>

@@ -1,7 +1,7 @@
 import enum
 import uuid
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -87,3 +87,18 @@ class Answer(UUIDMixin, TimestampMixin, Base):
     raw_transcript: Mapped[str | None] = mapped_column(Text)
 
     question: Mapped["Question"] = relationship(back_populates="answers")
+
+
+class MaturityScore(UUIDMixin, TimestampMixin, Base):
+    """Per-workstream maturity score for an assessment (S8-BA-001)."""
+    __tablename__ = "maturity_scores"
+
+    assessment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessments.id", ondelete="CASCADE"))
+    workstream: Mapped[str] = mapped_column(String(100), index=True)
+    score: Mapped[float] = mapped_column(Numeric(3, 1))
+    maturity_level: Mapped[str] = mapped_column(String(50), default="initial")
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        UniqueConstraint("assessment_id", "workstream", name="uq_maturity_assessment_workstream"),
+    )

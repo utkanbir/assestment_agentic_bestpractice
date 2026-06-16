@@ -17,10 +17,14 @@ interface PendingItem {
   title?: string;
 }
 
+interface FindingItem { id: string; description: string; severity: string; confidence?: number; }
+interface RiskItem { id: string; title?: string; description: string; level: string; }
+interface RecItem { id: string; description: string; priority?: number; effort?: string; }
+
 interface ApprovalQueueData {
-  pending_findings: string[];
-  pending_risks: string[];
-  pending_recommendations: string[];
+  pending_findings: (string | FindingItem)[];
+  pending_risks: (string | RiskItem)[];
+  pending_recommendations: (string | RecItem)[];
   total: number;
 }
 
@@ -146,26 +150,24 @@ export default function ApprovalQueue() {
 
       const collected: PendingItem[] = [];
 
-      await Promise.all([
-        ...data.pending_findings.map(async (id) => {
-          try {
-            const f = await fetchJSON<any>(`/findings/${id}`);
-            collected.push({ id, type: "finding", description: f.description, severity: f.severity, confidence: f.confidence });
-          } catch {}
-        }),
-        ...data.pending_risks.map(async (id) => {
-          try {
-            const r = await fetchJSON<any>(`/risks/${id}`);
-            collected.push({ id, type: "risk", title: r.title, description: r.description, level: r.level });
-          } catch {}
-        }),
-        ...data.pending_recommendations.map(async (id) => {
-          try {
-            const r = await fetchJSON<any>(`/recommendations/${id}`);
-            collected.push({ id, type: "recommendation", description: r.description, severity: "info" });
-          } catch {}
-        }),
-      ]);
+      // S8-BA-002: API now returns enriched objects; fall back to ID lookup for legacy
+      const toItem = (raw: string | FindingItem | RiskItem | RecItem, type: PendingItem["type"]): Partial<PendingItem> => {
+        if (typeof raw === "string") return { id: raw };
+        return raw as any;
+      };
+
+      for (const raw of data.pending_findings) {
+        const item = toItem(raw, "finding") as any;
+        collected.push({ id: item.id, type: "finding", description: item.description ?? "—", severity: item.severity ?? "info", confidence: item.confidence });
+      }
+      for (const raw of data.pending_risks) {
+        const item = toItem(raw, "risk") as any;
+        collected.push({ id: item.id, type: "risk", title: item.title, description: item.description ?? "—", level: item.level ?? "medium" });
+      }
+      for (const raw of data.pending_recommendations) {
+        const item = toItem(raw, "recommendation") as any;
+        collected.push({ id: item.id, type: "recommendation", description: item.description ?? "—", severity: "info" });
+      }
 
       setItems(collected);
     } catch { /* ignore */ } finally { setLoading(false); }

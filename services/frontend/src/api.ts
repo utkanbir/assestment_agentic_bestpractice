@@ -67,6 +67,101 @@ export interface AgentInfo {
 }
 
 export const listAgents = () => fetchJSON<AgentInfo[]>("/knowledge/agents");
+export const registerAgents = () =>
+  fetchJSON<{ status: string }>("/knowledge/agents/register", { method: "POST" });
+
+// ── Interview ────────────────────────────────────────────────────────────────
+
+export interface Interview {
+  id: string;
+  task_id: string;
+  interviewee_name: string;
+  interviewee_role: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface Question {
+  id: string;
+  interview_id: string;
+  text: string;
+  order: number;
+  agent_suggested: boolean;
+}
+
+export interface Answer {
+  id: string;
+  question_id: string;
+  text: string;
+  created_at: string;
+}
+
+export const listInterviews = (taskId: string) =>
+  fetchJSON<Interview[]>(`/interviews?task_id=${taskId}`);
+
+export const createInterview = (body: { task_id: string; interviewee_name: string; interviewee_role?: string }) =>
+  fetchJSON<Interview>("/interviews", { method: "POST", body: JSON.stringify(body) });
+
+export const listQuestions = (interviewId: string) =>
+  fetchJSON<Question[]>(`/interviews/${interviewId}/questions`);
+
+export const addQuestion = (interviewId: string, text: string, order = 0) =>
+  fetchJSON<Question>(`/interviews/${interviewId}/questions`, {
+    method: "POST",
+    body: JSON.stringify({ interview_id: interviewId, text, order, agent_suggested: false }),
+  });
+
+export const addAnswer = (questionId: string, text: string) =>
+  fetchJSON<Answer>(`/interviews/questions/${questionId}/answers`, {
+    method: "POST",
+    body: JSON.stringify({ question_id: questionId, text }),
+  });
+
+// ── Evidence ─────────────────────────────────────────────────────────────────
+
+export interface Evidence {
+  id: string;
+  source: string;
+  content: string;
+  evidence_type: string;
+  interview_id: string | null;
+}
+
+export const createEvidence = (body: { source: string; content: string; evidence_type: string; interview_id?: string | null }) =>
+  fetchJSON<Evidence>("/evidences", { method: "POST", body: JSON.stringify(body) });
+
+// ── Question Bank ────────────────────────────────────────────────────────────
+
+export interface WorkstreamQuestion {
+  id: string;
+  workstream: string;
+  area: string;
+  text: string;
+  follow_ups: string | null;
+  order: number;
+}
+
+export const listWorkstreamQuestions = (workstream: string) =>
+  fetchJSON<WorkstreamQuestion[]>(`/question-bank?workstream=${workstream}`);
+
+// ── Maturity ─────────────────────────────────────────────────────────────────
+
+export interface MaturityScoreItem {
+  id: string;
+  workstream: string;
+  score: number;
+  maturity_level: string;
+  notes: string | null;
+}
+
+export const getMaturityScores = (assessmentId: string) =>
+  fetchJSON<MaturityScoreItem[]>(`/assessments/${assessmentId}/maturity`);
+
+export const upsertMaturityScore = (assessmentId: string, workstream: string, body: { score: number; maturity_level: string; notes?: string }) =>
+  fetchJSON<MaturityScoreItem>(`/assessments/${assessmentId}/maturity/${workstream}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
 
 // ── Workstream options ───────────────────────────────────────────────────────
 
