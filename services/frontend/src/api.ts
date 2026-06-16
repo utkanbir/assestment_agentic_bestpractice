@@ -87,6 +87,7 @@ export interface Question {
   text: string;
   order: number;
   agent_suggested: boolean;
+  approval_status?: string; // "approved" | "pending" | "rejected"
 }
 
 export interface Answer {
@@ -206,6 +207,9 @@ export interface ExecutiveSummary {
 export const getExecutiveSummary = (assessmentId: string) =>
   fetchJSON<ExecutiveSummary>(`/orchestrator/${assessmentId}/executive-summary`);
 
+export const generateExecutiveSummary = (assessmentId: string) =>
+  fetchJSON<ExecutiveSummary>(`/orchestrator/${assessmentId}/generate-summary`, { method: "POST" });
+
 // ── Consolidated Roadmap (S4-FA-003) ────────────────────────────────────────
 
 export interface RoadmapItem {
@@ -234,3 +238,112 @@ export interface Dependency {
 
 export const getCrossTaskDependencies = (assessmentId: string) =>
   fetchJSON<Dependency[]>(`/orchestrator/${assessmentId}/dependencies`);
+
+// ── Agent Status (S10-BA-002) ────────────────────────────────────────────────
+
+export interface AgentStatusItem {
+  task_id: string;
+  workstream: string;
+  agent_type: string;
+  status: string; // "pending" | "in_progress" | "completed" | "skipped"
+}
+
+export const getAgentStatus = (assessmentId: string) =>
+  fetchJSON<AgentStatusItem[]>(`/assessments/${assessmentId}/agent-status`);
+
+// ── Question Suggest / Approve (S10-BA-001) ──────────────────────────────────
+
+export const suggestFollowup = (interviewId: string, text?: string) =>
+  fetchJSON<Question>(`/interviews/${interviewId}/suggest-followup`, {
+    method: "POST",
+    body: JSON.stringify({ text: text ?? "" }),
+  });
+
+export const approveQuestion = (questionId: string, action: "approved" | "rejected") =>
+  fetchJSON<Question>(`/interviews/questions/${questionId}/approval`, {
+    method: "PATCH",
+    body: JSON.stringify({ action }),
+  });
+
+// ── Answer with evaluation (S11-BA-002) ─────────────────────────────────────
+
+export interface AnswerWithEval {
+  id: string;
+  question_id: string;
+  text: string;
+  evaluation: string | null;
+  created_at: string;
+}
+
+export const addAnswerFull = (questionId: string, text: string) =>
+  fetchJSON<AnswerWithEval>(`/interviews/questions/${questionId}/answers`, {
+    method: "POST",
+    body: JSON.stringify({ question_id: questionId, text }),
+  });
+
+export const listAnswers = (questionId: string) =>
+  fetchJSON<AnswerWithEval[]>(`/interviews/questions/${questionId}/answers`);
+
+export const evaluateAnswer = (answerId: string) =>
+  fetchJSON<{ answer_id: string; evaluation: string }>(`/interviews/answers/${answerId}/evaluate`, {
+    method: "POST",
+  });
+
+// ── Question bank agent suggestions (S11-BA-003) ─────────────────────────────
+
+export const suggestBankQuestions = (workstream: string, count = 5) =>
+  fetchJSON<{ text: string }[]>(`/question-bank/suggest`, {
+    method: "POST",
+    body: JSON.stringify({ workstream, count }),
+  });
+
+// ── Agent Yönetimi / Metrics (S11-BA-004) ────────────────────────────────────
+
+export interface AgentMetrics {
+  workstream: string;
+  interviews_conducted: number;
+  questions_total: number;
+  questions_agent_suggested: number;
+  suggestions_approved: number;
+  suggestions_rejected: number;
+  suggestions_pending: number;
+  answers_total: number;
+  answers_evaluated: number;
+  documents_loaded: number;
+}
+
+export const getAllAgentMetrics = () =>
+  fetchJSON<AgentMetrics[]>("/agents/metrics");
+
+export const getWorkstreamMetrics = (workstream: string) =>
+  fetchJSON<AgentMetrics>(`/agents/metrics/${workstream}`);
+
+// ── Knowledge Documents (S11-BA-005) ─────────────────────────────────────────
+
+export interface KnowledgeDocument {
+  id: string;
+  workstream: string;
+  filename: string;
+  file_type: string;
+  chunk_count: number;
+  description: string | null;
+  created_at: string;
+}
+
+export const listDocuments = (workstream: string) =>
+  fetchJSON<KnowledgeDocument[]>(`/agents/${workstream}/documents`);
+
+export const uploadDocument = async (workstream: string, file: File, description?: string) => {
+  const form = new FormData();
+  form.append("file", file);
+  if (description) form.append("description", description);
+  const res = await fetch(`/api/v1/agents/${workstream}/documents`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<KnowledgeDocument>;
+};
+
+export const deleteDocument = (workstream: string, docId: string) =>
+  fetch(`/api/v1/agents/${workstream}/documents/${docId}`, { method: "DELETE" });

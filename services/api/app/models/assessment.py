@@ -74,6 +74,7 @@ class Question(UUIDMixin, TimestampMixin, Base):
     text: Mapped[str] = mapped_column(Text)
     order: Mapped[int] = mapped_column(default=0)
     agent_suggested: Mapped[bool] = mapped_column(default=False)
+    approval_status: Mapped[str] = mapped_column(String(50), default="approved")
 
     interview: Mapped["Interview"] = relationship(back_populates="questions")
     answers: Mapped[list["Answer"]] = relationship(back_populates="question", cascade="all, delete-orphan")
@@ -85,6 +86,7 @@ class Answer(UUIDMixin, TimestampMixin, Base):
     question_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("questions.id", ondelete="CASCADE"))
     text: Mapped[str] = mapped_column(Text)
     raw_transcript: Mapped[str | None] = mapped_column(Text)
+    evaluation: Mapped[str | None] = mapped_column(Text, default=None)
 
     question: Mapped["Question"] = relationship(back_populates="answers")
 

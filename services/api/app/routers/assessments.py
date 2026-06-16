@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.assessment import Assessment, MaturityScore
+from app.models.assessment import Assessment, MaturityScore, Task
 from app.schemas.assessment import AssessmentCreate, AssessmentOut, AssessmentUpdate
 from app.services import kg_writer
 
@@ -28,6 +28,13 @@ class MaturityScoreOut(BaseModel):
     notes: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class AgentStatusOut(BaseModel):
+    task_id: str
+    workstream: str
+    agent_type: str
+    status: str
 
 
 @router.get("", response_model=list[AssessmentOut])
@@ -145,3 +152,26 @@ async def upsert_maturity_score(
         maturity_level=score.maturity_level,
         notes=score.notes,
     )
+
+
+@router.get("/{assessment_id}/agent-status", response_model=list[AgentStatusOut])
+async def get_agent_status(assessment_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """S10-BA-002: Return status of all 8 agent tasks for an assessment."""
+    assessment = await db.get(Assessment, assessment_id)
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    result = await db.execute(
+        select(Task)
+        .where(Task.assessment_id == assessment_id)
+        .order_by(Task.workstream)
+    )
+    tasks = result.scalars().all()
+    return [
+        AgentStatusOut(
+            task_id=str(t.id),
+            workstream=t.workstream,
+            agent_type=t.agent_type,
+            status=t.status,
+        )
+        for t in tasks
+    ]

@@ -1,13 +1,16 @@
+import asyncio
 import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.question_bank import WorkstreamQuestion
 from app.schemas.question_bank import BulkLoadRequest, WorkstreamQuestionCreate, WorkstreamQuestionOut
+from app.services import llm_client
 
 router = APIRouter(prefix="/question-bank", tags=["question-bank"])
 
@@ -100,3 +103,48 @@ async def delete_question(question_id: uuid.UUID, db: AsyncSession = Depends(get
         raise HTTPException(status_code=404, detail="Question not found")
     await db.delete(q)
     await db.commit()
+
+
+class SuggestRequest(BaseModel):
+    workstream: str
+    count: int = 5
+
+
+class SuggestedQuestion(BaseModel):
+    text: str
+
+
+@router.post("/suggest", response_model=list[SuggestedQuestion])
+async def suggest_questions(body: SuggestRequest, db: AsyncSession = Depends(get_db)):
+    """Ask Claude to suggest new questions for a workstream (not saved automatically)."""
+    result = await db.execute(
+        select(WorkstreamQuestion.text)
+        .where(WorkstreamQuestion.workstream == body.workstream)
+        .where(WorkstreamQuestion.is_active == True)
+    )
+    existing = [row[0] for row in result.all()]
+
+    # Fetch doc context from Qdrant (best effort)
+    doc_context = ""
+    try:
+        from app.services.qdrant_client import search_documents
+        loop = asyncio.get_event_loop()
+        chunks = await loop.run_in_executor(
+            None,
+            lambda: search_documents(body.workstream, body.workstream, limit=3),
+        )
+        doc_context = "\n".join(c["text"] for c in chunks)
+    except Exception:
+        pass
+
+    loop = asyncio.get_event_loop()
+    suggestions = await loop.run_in_executor(
+        None,
+        lambda: llm_client.suggest_workstream_questions(
+            workstream=body.workstream,
+            existing_questions=existing,
+            count=body.count,
+            doc_context=doc_context,
+        ),
+    )
+    return [SuggestedQuestion(text=t) for t in suggestions]

@@ -7,7 +7,7 @@
 <https://aakp.ai/ontology/assessment>
     a owl:Ontology ;
     rdfs:label "AAKP Assessment Ontology" ;
-    owl:versionInfo "0.3" .
+    owl:versionInfo "0.4" .
 
 # ─── Classes ────────────────────────────────────────────────────────────────
 
@@ -70,6 +70,11 @@ aakp:producesFinding     a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:ran
 aakp:dependsOnTask       a owl:ObjectProperty ; rdfs:domain aakp:Task ; rdfs:range aakp:Task .
 aakp:conductedForTask    a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Task .
 aakp:hasQuestion         a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Question .
+aakp:suggestedQuestion   a owl:ObjectProperty ;
+                           rdfs:subPropertyOf aakp:hasQuestion ;
+                           rdfs:domain aakp:Interview ;
+                           rdfs:range aakp:Question ;
+                           rdfs:comment "Links an interview to a pending agent-suggested question awaiting approval." .
 aakp:producesEvidence    a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Evidence .
 aakp:hasAnswer           a owl:ObjectProperty ; rdfs:domain aakp:Question ; rdfs:range aakp:Answer .
 aakp:answersQuestion     a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Question .
@@ -112,7 +117,11 @@ aakp:intervieweeRole a owl:DatatypeProperty ; rdfs:domain aakp:Interview ; rdfs:
 # Question / Answer
 aakp:hasText           a owl:DatatypeProperty ; rdfs:range xsd:string .
 aakp:hasOrder          a owl:DatatypeProperty ; rdfs:domain aakp:Question ; rdfs:range xsd:integer .
-aakp:isAgentSuggested  a owl:DatatypeProperty ; rdfs:domain aakp:Question ; rdfs:range xsd:boolean .
+aakp:isAgentSuggested      a owl:DatatypeProperty ; rdfs:domain aakp:Question ; rdfs:range xsd:boolean .
+aakp:questionApprovalStatus a owl:DatatypeProperty ;
+                              rdfs:domain aakp:Question ;
+                              rdfs:range xsd:string ;
+                              rdfs:comment "Values: pending | approved | rejected. Default approved for consultant questions, pending for agent suggestions." .
 
 # Evidence
 aakp:content      a owl:DatatypeProperty ; rdfs:domain aakp:Evidence ; rdfs:range xsd:string .

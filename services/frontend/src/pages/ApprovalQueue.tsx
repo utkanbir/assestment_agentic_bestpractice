@@ -173,7 +173,11 @@ export default function ApprovalQueue() {
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [assessmentId]);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, [assessmentId]);
 
   const onDecision = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));

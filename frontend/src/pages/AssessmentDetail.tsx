@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, FileText, BarChart2, Star } from "lucide-react";
 import { api } from "../api/client";
 import { StatusBadge } from "../components/StatusBadge";
 
@@ -49,6 +49,28 @@ export function AssessmentDetail() {
           </div>
           <StatusBadge status={assessment.status} />
         </div>
+      </div>
+
+      {/* Quick links to assessment-level pages */}
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <Link
+          to={`/assessments/${id}/maturity`}
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          <Star size={13} /> Maturity Skorları
+        </Link>
+        <Link
+          to={`/assessments/${id}/executive-summary`}
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          <FileText size={13} /> Executive Summary
+        </Link>
+        <Link
+          to={`/assessments/${id}/risk-heatmap`}
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          <BarChart2 size={13} /> Risk Heatmap
+        </Link>
       </div>
 
       <div className="flex items-center justify-between mb-4">

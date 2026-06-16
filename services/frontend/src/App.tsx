@@ -13,6 +13,9 @@ import ApprovalQueue from "./pages/ApprovalQueue";
 import MaturityDashboard from "./pages/MaturityDashboard";
 import ReportExport from "./pages/ReportExport";
 import CatalogLink from "./pages/CatalogLink";
+import InterviewRoom from "./pages/InterviewRoom";
+import QuestionManagement from "./pages/QuestionManagement";
+import AjanYonetimi from "./pages/AjanYonetimi";
 
 const navStyle = (active: boolean): React.CSSProperties => ({
   padding: "7px 14px",
@@ -31,8 +34,9 @@ export default function App() {
 
   const links = [
     { to: "/", label: "Genel Bakış", end: true },
-    { to: "/agents", label: "Ajan Seçimi" },
-    { to: "/sessions", label: "Oturumlar" },
+    { to: "/interview", label: "Interview" },
+    { to: "/questions", label: "Sorular" },
+    { to: "/ajan-yonetimi", label: "Ajan Yönetimi" },
     { to: "/approvals", label: "Onay Kuyruğu" },
     { to: "/heatmap", label: "Risk Heatmap" },
     { to: "/maturity", label: "Olgunluk" },
@@ -125,6 +129,9 @@ export default function App() {
           <Route path="/" element={<AssessmentOverview />} />
           <Route path="/agents" element={<AgentSelection />} />
           <Route path="/sessions" element={<ParallelSessions />} />
+          <Route path="/interview" element={<InterviewRoom />} />
+          <Route path="/questions" element={<QuestionManagement />} />
+          <Route path="/ajan-yonetimi" element={<AjanYonetimi />} />
           <Route path="/approvals" element={<ApprovalQueue />} />
           <Route path="/heatmap" element={<RiskHeatmap />} />
           <Route path="/maturity" element={<MaturityDashboard />} />

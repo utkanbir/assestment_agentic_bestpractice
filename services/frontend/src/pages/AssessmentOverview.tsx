@@ -262,7 +262,7 @@ export default function AssessmentOverview() {
             <AssessmentCard
               key={a.id}
               assessment={a}
-              onClick={() => navigate(`/agents?assessment_id=${a.id}`)}
+              onClick={() => navigate(`/interview?assessment_id=${a.id}`)}
             />
           ))}
         </div>

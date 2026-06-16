@@ -46,7 +46,16 @@ class QuestionOut(BaseModel):
     text: str
     order: int
     agent_suggested: bool
+    approval_status: str
     created_at: datetime
+
+
+class QuestionApprovalUpdate(BaseModel):
+    action: str  # "approved" or "rejected"
+
+
+class SuggestFollowupBody(BaseModel):
+    text: str | None = None
 
 
 class AnswerCreate(BaseModel):
@@ -62,4 +71,10 @@ class AnswerOut(BaseModel):
     question_id: uuid.UUID
     text: str
     raw_transcript: str | None
+    evaluation: str | None
     created_at: datetime
+
+
+class EvaluateOut(BaseModel):
+    answer_id: uuid.UUID
+    evaluation: str

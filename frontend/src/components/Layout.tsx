@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, ClipboardList, Search } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Search, CheckSquare } from "lucide-react";
 
 const NAV = [
   { to: "/", label: "Assessments", icon: LayoutDashboard },
   { to: "/findings", label: "Findings", icon: Search },
+  { to: "/approvals", label: "Onay Kuyruğu", icon: CheckSquare },
   { to: "/reports", label: "Reports", icon: ClipboardList },
 ];
 
@@ -20,7 +21,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={to}
               to={to}
               className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                pathname === to
+                (to === "/" ? pathname === "/" : pathname.startsWith(to))
                   ? "bg-brand-600 text-white"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
