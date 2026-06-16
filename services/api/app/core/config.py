@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     opa_url: str = "http://aakp-opa.aakp-agent.svc.cluster.local:8181"
     presidio_analyzer_url: str = "http://aakp-presidio-analyzer.aakp-agent.svc.cluster.local:5001"
     presidio_anonymizer_url: str = "http://aakp-presidio-anonymizer.aakp-agent.svc.cluster.local:5002"
+    # S6-DA: Observability service URLs
+    otel_exporter_endpoint: str = "http://aakp-otel-collector.aakp-monitoring.svc.cluster.local:4317"
+    langfuse_host: str = "http://aakp-langfuse.aakp-monitoring.svc.cluster.local:3000"
 
 
 settings = Settings()

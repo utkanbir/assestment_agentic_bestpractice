@@ -1,0 +1,220 @@
+---
+# S6-FA-001..006: Grafana dashboard definitions as ConfigMap
+# Grafana provisioning loads these automatically via /var/lib/grafana/dashboards
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: aakp-monitoring
+data:
+  # ─── S6-FA-001: Agent Performance Dashboard ───────────────────────────────
+  agent-performance.json: |
+    {
+      "title": "AAKP — Agent Performance",
+      "uid": "aakp-agent-perf",
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "LLM Calls / min (by agent)",
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+          "targets": [{
+            "expr": "rate(aakp_llm_calls_total[1m])",
+            "legendFormat": "{{agent}}"
+          }]
+        },
+        {
+          "type": "gauge",
+          "title": "Agent Confidence Avg (by workstream)",
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+          "targets": [{
+            "expr": "aakp_agent_confidence_avg",
+            "legendFormat": "{{workstream}}"
+          }],
+          "fieldConfig": {"defaults": {"min": 0, "max": 1, "thresholds": {"steps": [
+            {"color": "red", "value": 0},
+            {"color": "yellow", "value": 0.5},
+            {"color": "green", "value": 0.75}
+          ]}}}
+        },
+        {
+          "type": "timeseries",
+          "title": "API Request Latency p95 (ms)",
+          "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+          "targets": [{
+            "expr": "histogram_quantile(0.95, rate(aakp_api_request_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "p95 {{path}}"
+          }]
+        }
+      ]
+    }
+
+  # ─── S6-FA-002: Cost / Token Dashboard ───────────────────────────────────
+  cost-dashboard.json: |
+    {
+      "title": "AAKP — Cost / Token Usage",
+      "uid": "aakp-cost",
+      "refresh": "1m",
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Total Input Tokens (last 24h)",
+          "gridPos": {"x": 0, "y": 0, "w": 8, "h": 4},
+          "targets": [{
+            "expr": "increase(aakp_llm_tokens_total{direction=\"input\"}[24h])"
+          }]
+        },
+        {
+          "type": "stat",
+          "title": "Total Output Tokens (last 24h)",
+          "gridPos": {"x": 8, "y": 0, "w": 8, "h": 4},
+          "targets": [{
+            "expr": "increase(aakp_llm_tokens_total{direction=\"output\"}[24h])"
+          }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Token Usage / hour (by agent)",
+          "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8},
+          "targets": [{
+            "expr": "rate(aakp_llm_tokens_total[1h]) * 3600",
+            "legendFormat": "{{agent}} {{direction}}"
+          }]
+        }
+      ]
+    }
+
+  # ─── S6-FA-003: Task Activity Timeline ───────────────────────────────────
+  task-timeline.json: |
+    {
+      "title": "AAKP — Task Activity Timeline",
+      "uid": "aakp-task-timeline",
+      "refresh": "1m",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "KG Writes / min (by entity type)",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+          "targets": [{
+            "expr": "rate(aakp_kg_writes_total[1m])",
+            "legendFormat": "{{entity_type}}"
+          }]
+        },
+        {
+          "type": "logs",
+          "title": "Recent Task Events (Loki)",
+          "gridPos": {"x": 0, "y": 8, "w": 24, "h": 10},
+          "targets": [{
+            "datasource": "Loki",
+            "expr": "{namespace=~\"aakp-.*\", app=~\"aakp-.*-agent\"} |= \"task_id\" | json"
+          }]
+        }
+      ]
+    }
+
+  # ─── S6-FA-004: Guardrail Violations Panel ────────────────────────────────
+  guardrail-violations.json: |
+    {
+      "title": "AAKP — Guardrail Violations",
+      "uid": "aakp-guardrails",
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Total Violations (last 1h)",
+          "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+          "targets": [{"expr": "increase(aakp_guardrail_violations_total[1h])"}],
+          "fieldConfig": {"defaults": {"thresholds": {"steps": [
+            {"color": "green", "value": 0},
+            {"color": "red", "value": 1}
+          ]}}}
+        },
+        {
+          "type": "piechart",
+          "title": "Violations by Entity Type",
+          "gridPos": {"x": 6, "y": 0, "w": 9, "h": 8},
+          "targets": [{
+            "expr": "sum by (entity_type) (increase(aakp_guardrail_violations_total[24h]))",
+            "legendFormat": "{{entity_type}}"
+          }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Violations Over Time",
+          "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+          "targets": [{
+            "expr": "rate(aakp_guardrail_violations_total[5m])",
+            "legendFormat": "{{violation_type}} / {{entity_type}}"
+          }]
+        }
+      ]
+    }
+
+  # ─── S6-FA-005: Evidence Coverage Panel ──────────────────────────────────
+  evidence-coverage.json: |
+    {
+      "title": "AAKP — Evidence Coverage",
+      "uid": "aakp-evidence-cov",
+      "refresh": "1m",
+      "panels": [
+        {
+          "type": "gauge",
+          "title": "Evidence Coverage Score (per assessment)",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 10},
+          "targets": [{
+            "expr": "aakp_evidence_coverage_score",
+            "legendFormat": "Assessment {{assessment_id}}"
+          }],
+          "fieldConfig": {"defaults": {
+            "min": 0, "max": 1,
+            "unit": "percentunit",
+            "thresholds": {"steps": [
+              {"color": "red", "value": 0},
+              {"color": "yellow", "value": 0.6},
+              {"color": "green", "value": 0.8}
+            ]}
+          }}
+        },
+        {
+          "type": "stat",
+          "title": "Recommendations Without Evidence",
+          "gridPos": {"x": 0, "y": 10, "w": 12, "h": 4},
+          "targets": [{"expr": "increase(aakp_recommendation_without_evidence_total[24h])"}],
+          "fieldConfig": {"defaults": {"thresholds": {"steps": [
+            {"color": "green", "value": 0},
+            {"color": "red", "value": 1}
+          ]}}}
+        }
+      ]
+    }
+
+  # ─── S6-FA-006: LLM Call Logs Dashboard ──────────────────────────────────
+  llm-logs.json: |
+    {
+      "title": "AAKP — LLM Call Logs",
+      "uid": "aakp-llm-logs",
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "logs",
+          "title": "LLM Call Logs (Loki)",
+          "gridPos": {"x": 0, "y": 0, "w": 24, "h": 14},
+          "options": {"showTime": true, "sortOrder": "Descending"},
+          "targets": [{
+            "datasource": "Loki",
+            "expr": "{namespace=~\"aakp-.*\"} |= \"llm\" | json | level != \"DEBUG\""
+          }]
+        },
+        {
+          "type": "traces",
+          "title": "LLM Traces (Tempo)",
+          "gridPos": {"x": 0, "y": 14, "w": 24, "h": 10},
+          "datasource": "Tempo",
+          "targets": [{
+            "datasource": "Tempo",
+            "queryType": "traceql",
+            "query": "{ .service.name =~ \"aakp-.*\" && duration > 1s }"
+          }]
+        }
+      ]
+    }

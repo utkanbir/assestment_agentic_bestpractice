@@ -1,0 +1,131 @@
+---
+# S6-DA-002: Grafana deploy + datasource konfigurasyonu
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: aakp-monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://aakp-prometheus.aakp-monitoring.svc.cluster.local:9090
+        isDefault: true
+        jsonData:
+          timeInterval: "15s"
+
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://aakp-loki.aakp-monitoring.svc.cluster.local:3100
+        jsonData:
+          maxLines: 1000
+
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://aakp-tempo.aakp-monitoring.svc.cluster.local:3200
+        jsonData:
+          tracesToLogs:
+            datasourceUid: loki
+            mapTagNamesEnabled: true
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secret
+  namespace: aakp-monitoring
+type: Opaque
+stringData:
+  admin-user: admin
+  admin-password: aakp-grafana-2026
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-grafana
+  namespace: aakp-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-grafana
+  template:
+    metadata:
+      labels:
+        app: aakp-grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secret
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secret
+                  key: admin-password
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+            - name: GF_FEATURE_TOGGLES_ENABLE
+              value: "traceqlEditor"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provision
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-provision
+          configMap:
+            name: grafana-dashboard-provision
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provision
+  namespace: aakp-monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: aakp
+        folder: AAKP
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-grafana
+  namespace: aakp-monitoring
+spec:
+  selector:
+    app: aakp-grafana
+  ports:
+    - port: 3000
+      targetPort: 3000

@@ -1,0 +1,146 @@
+---
+# S6-DA-001: Prometheus deploy + tum servislerden scrape config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: aakp-monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - /etc/prometheus/rules/*.yaml
+
+    scrape_configs:
+      - job_name: "aakp-api"
+        static_configs:
+          - targets: ["aakp-api.aakp-information.svc.cluster.local:8000"]
+        metrics_path: /metrics
+
+      - job_name: "aakp-audit-log"
+        static_configs:
+          - targets: ["aakp-audit-log.aakp-information.svc.cluster.local:8001"]
+        metrics_path: /metrics
+
+      - job_name: "aakp-orchestrator-agent"
+        static_configs:
+          - targets: ["aakp-orchestrator-agent.aakp-agent.svc.cluster.local:8000"]
+        metrics_path: /metrics
+
+      - job_name: "aakp-copilot-agent"
+        static_configs:
+          - targets: ["aakp-copilot-agent.aakp-agent.svc.cluster.local:8000"]
+        metrics_path: /metrics
+
+      - job_name: "aakp-research-agent"
+        static_configs:
+          - targets: ["aakp-research-agent.aakp-agent.svc.cluster.local:8000"]
+        metrics_path: /metrics
+
+      - job_name: "aakp-workstream-agents"
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["aakp-agent"]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: "aakp-.*-agent"
+            action: keep
+
+      - job_name: "fuseki"
+        static_configs:
+          - targets: ["aakp-fuseki.aakp-information.svc.cluster.local:3030"]
+        metrics_path: /metrics
+
+      - job_name: "qdrant"
+        static_configs:
+          - targets: ["aakp-qdrant.aakp-information.svc.cluster.local:6333"]
+        metrics_path: /metrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-prometheus
+  namespace: aakp-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-prometheus
+  template:
+    metadata:
+      labels:
+        app: aakp-prometheus
+    spec:
+      serviceAccountName: prometheus-sa
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.51.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=30d"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: storage
+              mountPath: /prometheus
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-prometheus
+  namespace: aakp-monitoring
+spec:
+  selector:
+    app: aakp-prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-sa
+  namespace: aakp-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-role
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods, services, endpoints]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-role
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-sa
+    namespace: aakp-monitoring

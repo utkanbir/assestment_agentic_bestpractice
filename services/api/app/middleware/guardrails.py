@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.metrics import guardrail_violations_total  # S6-BA-004
 
 log = logging.getLogger("guardrails")
 
@@ -63,6 +64,11 @@ class PIIGuardrailMiddleware(BaseHTTPMiddleware):
                                         "PII detected in %s.%s: %s (path=%s)",
                                         request.method, field, entity_types, path
                                     )
+                                    # S6-BA-004: record violation per entity type
+                                    for et in entity_types:
+                                        guardrail_violations_total.labels(
+                                            violation_type="pii", entity_type=et, path=path
+                                        ).inc()
                                     # Block only CRITICAL PII (TC kimlik, IBAN, credit card)
                                     critical = {"TR_TC_KimlikNo", "IBAN_CODE", "CREDIT_CARD"}
                                     if critical & set(entity_types):

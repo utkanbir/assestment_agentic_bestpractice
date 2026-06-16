@@ -1,9 +1,13 @@
 import json
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../base"))
 
 from langchain_core.messages import SystemMessage
 
 from agent.config import settings
 from agent.state import WorkstreamAgentState
+from langfuse_tracer import create_trace, record_llm_generation, record_confidence_score  # S6-AA-001/003
 
 _SYSTEM_TMPL = """{workstream_label} assessment uzmanısın. Interview cevabını analiz et.
 Eğer önemli bir bulgu varsa JSON döndür:
@@ -54,7 +58,17 @@ async def finding_detector(state: WorkstreamAgentState, llm) -> dict:
         )),
     ]
 
+    # S6-AA-001: trace this LLM call in LangFuse
+    trace = create_trace(
+        name="finding_detector",
+        agent=f"workstream-{workstream}",
+        assessment_id=state.get("assessment_id"),
+    )
     response = await llm.ainvoke(messages)
+    usage = getattr(response, "usage_metadata", None)
+    usage_dict = {"input": usage.get("input_tokens", 0), "output": usage.get("output_tokens", 0)} if usage else {}
+    record_llm_generation(trace, "find_finding", settings.anthropic_model, [m.content for m in messages], response.content, usage_dict)
+
     try:
         result = json.loads(response.content.strip())
     except (json.JSONDecodeError, ValueError):
@@ -79,6 +93,10 @@ async def finding_detector(state: WorkstreamAgentState, llm) -> dict:
         covered.append(area)
 
     should_end = state.get("answer_count", 0) >= 8 or len(covered) >= 8
+
+    # S6-AA-003: send confidence score to LangFuse
+    confidence = result["confidence"]
+    record_confidence_score(trace, confidence, comment=f"severity={result['severity']}")
 
     return {
         "pending_findings": pending,
