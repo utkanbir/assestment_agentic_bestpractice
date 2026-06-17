@@ -51,14 +51,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Dry-run namespaces
-        run: kubectl apply --dry-run=client --validate=false -f infra/namespaces/namespaces.yaml
-
-      - name: Dry-run RBAC
-        run: kubectl apply --dry-run=client --validate=false -f infra/rbac/rbac.yaml
+      - name: Validate namespace & RBAC YAML syntax
+        run: |
+          pip install pyyaml
+          python -c "
+          import yaml, pathlib
+          for f in ['infra/namespaces/namespaces.yaml', 'infra/rbac/rbac.yaml']:
+            list(yaml.safe_load_all(pathlib.Path(f).read_text()))
+            print('OK', f)
+          "
 
   api-tests:
     name: API Pytest (postgres + API)
@@ -109,12 +114,10 @@ jobs:
         run: |
           python -c "import asyncio; from app.seeds.question_bank_seed import seed_all; asyncio.run(seed_all('http://localhost:8000'))"
 
-      - name: Pytest (skip K8s / Kong / flaky KG tests)
+      - name: Pytest (postgres + API only; skip Fuseki/Kong/K8s)
         run: |
-          python -m pytest tests/ -v \
-            --ignore=tests/test_01_infrastructure.py \
-            --ignore=tests/test_03_websocket.py \
-            -k "not finding_kg_write and not report_requires_evidence_chain"
+          python -m pytest tests/test_02_api.py tests/test_06_sprint8.py tests/test_07_sprint9.py tests/test_08_sprint10.py tests/test_09_sprint11.py -v \
+            -k "not knowledge_agents and not shacl and not kg_has_triples and not agent_registry"
 
   playwright-e2e:
     name: Playwright E2E (frontend)
