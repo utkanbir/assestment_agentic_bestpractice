@@ -26,6 +26,7 @@ spec:
             - --addr=:8181
             - --log-format=json
             - --set=decision_logs.console=true
+            - --ignore=.*
             - /policies
           ports:
             - containerPort: 8181
@@ -145,7 +146,7 @@ data:
     }
 
     # Violations: log when denied
-    violation contains msg if {
+    violation[msg] {
       not allow_kg_write
       msg := sprintf("KG write denied: role=%v, graph=%v", [
         input.token.payload.role,

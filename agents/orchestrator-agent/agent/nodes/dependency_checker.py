@@ -1,4 +1,5 @@
 # S4-AA-003: Cross-task dependency checker (SPARQL + KG)
+# S9-AA-001: assessment_id parametrize + REST API fallback
 from pathlib import Path
 import httpx
 from SPARQLWrapper import SPARQLWrapper, JSON
@@ -23,11 +24,28 @@ def _run_dependency_query() -> list[dict]:
     return rows
 
 
+async def _fetch_from_api(assessment_id: str) -> list[dict]:
+    """REST API fallback: SPARQL/Fuseki erişilemediğinde kullanılır."""
+    if not assessment_id:
+        return []
+    url = f"{settings.api_base_url}/api/v1/orchestrator/{assessment_id}/dependencies"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception:
+            pass
+    return []
+
+
 async def dependency_checker(state: OrchestratorState) -> dict:
+    assessment_id = state.assessment_id if hasattr(state, "assessment_id") else state.get("assessment_id", "")
+
     try:
         rows = _run_dependency_query()
     except Exception:
-        rows = []
+        rows = await _fetch_from_api(assessment_id)
 
     dependencies = [r for r in rows if "conflictSignal" not in r or r.get("conflictSignal") == "SHARED_RISK_AREA"]
     shared_risks = [r for r in rows if r.get("conflictSignal", "").startswith("SEVERITY_CONFLICT")]

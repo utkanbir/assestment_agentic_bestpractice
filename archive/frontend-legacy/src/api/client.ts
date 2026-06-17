@@ -6,6 +6,11 @@ import type {
   Answer,
   Evidence,
   Finding,
+  MaturityScore,
+  ApprovalQueue,
+  Report,
+  ExecutiveSummaryOut,
+  RiskHeatmapCell,
 } from "./types";
 
 const BASE = "/api/v1";
@@ -70,5 +75,56 @@ export const api = {
   knowledge: {
     taskFindings: (taskId: string) =>
       req<Finding[]>(`/knowledge/tasks/${taskId}/findings`),
+  },
+
+  maturity: {
+    list: (assessmentId: string) =>
+      req<MaturityScore[]>(`/assessments/${assessmentId}/maturity`),
+    upsert: (
+      assessmentId: string,
+      workstream: string,
+      body: { score: number; maturity_level: string; notes?: string },
+    ) =>
+      req<MaturityScore>(`/assessments/${assessmentId}/maturity/${workstream}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+  },
+
+  approvals: {
+    pending: (assessmentId?: string) =>
+      req<ApprovalQueue>(
+        `/approvals/pending${assessmentId ? `?assessment_id=${assessmentId}` : ""}`,
+      ),
+    approveFind: (id: string, decision: "approved" | "rejected") =>
+      req<void>(`/approvals/findings/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ decision }),
+      }),
+    approveRisk: (id: string, decision: "approved" | "rejected") =>
+      req<void>(`/approvals/risks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ decision }),
+      }),
+    approveRec: (id: string, decision: "approved" | "rejected") =>
+      req<void>(`/approvals/recommendations/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ decision }),
+      }),
+  },
+
+  reports: {
+    list: (assessmentId?: string) =>
+      req<Report[]>(`/reports${assessmentId ? `?assessment_id=${assessmentId}` : ""}`),
+    get: (id: string) => req<Report>(`/reports/${id}`),
+  },
+
+  orchestrator: {
+    generateSummary: (assessmentId: string) =>
+      req<ExecutiveSummaryOut>(`/orchestrator/${assessmentId}/generate-summary`, { method: "POST" }),
+    getSummary: (assessmentId: string) =>
+      req<ExecutiveSummaryOut>(`/orchestrator/${assessmentId}/executive-summary`),
+    getRiskHeatmap: (assessmentId: string) =>
+      req<RiskHeatmapCell[]>(`/orchestrator/${assessmentId}/risk-heatmap`),
   },
 };

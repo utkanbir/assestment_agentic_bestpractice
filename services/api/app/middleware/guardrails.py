@@ -27,7 +27,7 @@ _TEXT_FIELDS = ("text", "content", "description", "raw_transcript")
 
 async def _presidio_analyze(text: str) -> list[dict]:
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
+        async with httpx.AsyncClient(timeout=2) as client:
             resp = await client.post(
                 f"{settings.presidio_analyzer_url}/analyze",
                 json={"text": text, "language": "tr",

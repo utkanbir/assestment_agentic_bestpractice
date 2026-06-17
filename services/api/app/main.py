@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.metrics import metrics_app  # S6-BA-001
 from app.routers import assessments, health, interviews, knowledge, qdrant, question_bank, recommendations, reports, risks, tasks, ws
 from app.routers.findings import evidence_router, finding_router
-from app.routers import orchestrator, approvals
+from app.routers import orchestrator, approvals, agent_mgmt
 from app.middleware.guardrails import PIIGuardrailMiddleware
 from app.middleware.tracing import setup_tracing  # S6-BA-006
 
@@ -75,3 +75,4 @@ app.include_router(ws.router)
 app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(orchestrator.router, prefix="/api/v1")
 app.include_router(approvals.router, prefix="/api/v1")
+app.include_router(agent_mgmt.router, prefix="/api/v1")

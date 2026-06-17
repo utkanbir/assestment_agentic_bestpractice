@@ -33,6 +33,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "cicd",
          "text": "Deployment pipeline nasıl çalışıyor? GitOps (ArgoCD/Flux) kullanılıyor mu?",
          "follow_ups": ["Rollback süreci nasıl işliyor?", "Blue/green veya canary deployment var mı?"]},
+        {"area": "multi_tenancy",
+         "text": "Namespace bazlı çok kiracılı (multi-tenant) yapı uygulanıyor mu? Kaynak izolasyonu nasıl sağlanıyor?",
+         "follow_ups": ["NetworkPolicy ile namespace izolasyonu var mı?", "ResourceQuota ve LimitRange tanımlı mı?"]},
+        {"area": "upgrades",
+         "text": "Kubernetes versiyon yükseltme stratejisi nedir? Son upgrade ne zaman yapıldı?",
+         "follow_ups": ["In-place upgrade mı yoksa yeni cluster provizyon mu?", "Deprecation API takibi nasıl yapılıyor?"]},
     ],
 
     # ─── S3-AA-001: Cloud Strategy ───────────────────────────────────────────
@@ -61,6 +67,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "skills_organization",
          "text": "Ekiplerin cloud yetkinlik seviyesi nedir? Cloud skill gap analizi yapıldı mı?",
          "follow_ups": ["Sertifikasyon hedefleri var mı?", "External partner ile iç kapasite dengesi nasıl?"]},
+        {"area": "workload_portability",
+         "text": "Workload'lar cloud-native mi yoksa lift-and-shift mi? Konteynerizasyon olgunluğu nedir?",
+         "follow_ups": ["12-factor app prensiplerine uyum var mı?", "Hybrid cloud senaryo testi yapıldı mı?"]},
+        {"area": "sustainability",
+         "text": "Cloud sürdürülebilirlik (carbon footprint) hedefleri tanımlı mı? Green cloud stratejisi var mı?",
+         "follow_ups": ["Bölge seçiminde karbon yoğunluğu gözetiliyor mu?", "Spot/preemptible instance kullanımı ESG raporuna yansıyor mu?"]},
     ],
 
     # ─── S3-AA-002: Ingestion (NiFi, Kafka, DataStage) ───────────────────────
@@ -89,6 +101,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "cdc",
          "text": "Change Data Capture (CDC) kullanılıyor mu? Hangi sistemlerde ve nasıl?",
          "follow_ups": ["Debezium, Oracle GoldenGate gibi araçlar var mı?", "Binlog/WAL bazlı mı snapshot bazlı mı?"]},
+        {"area": "schema_registry",
+         "text": "Schema Registry kullanılıyor mu? Şema evrimini (schema evolution) nasıl yönetiyorsunuz?",
+         "follow_ups": ["Confluent Schema Registry veya AWS Glue Schema Registry?", "Backward/forward compatibility politikası var mı?"]},
+        {"area": "orchestration",
+         "text": "Ingestion pipeline orkestrasyon aracı nedir? (Airflow, Prefect, Dagster)",
+         "follow_ups": ["DAG yönetimi ve bağımlılık takibi nasıl yapılıyor?", "SLA izleme ve otomatik retry mekanizması var mı?"]},
     ],
 
     # ─── S3-AA-003: Teradata DR ───────────────────────────────────────────────
@@ -117,6 +135,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "licensing_cost",
          "text": "Teradata lisans maliyeti ve yenileme planı nedir?",
          "follow_ups": ["Kapasite planlaması yapıldı mı?", "Cloud Teradata veya alternatif değerlendiriliyor mu?"]},
+        {"area": "query_governance",
+         "text": "Teradata üzerinde sorgu yönetişimi nasıl yapılıyor? Kötü sorguları tespit ve durdurmak için mekanizma var mı?",
+         "follow_ups": ["Workload Management (TASM/TDWM) aktif mi?", "Sorgu loglama ve maliyet atfı (chargeback) yapılıyor mu?"]},
+        {"area": "skills_knowledge",
+         "text": "Teradata yetkinliği takımda nasıl dağılmış? Emeklilik/transfer riski var mı?",
+         "follow_ups": ["Dokümantasyon ve runbook'lar güncel mi?", "Bteql/SQL-H bilgisi yeterli seviyede mi?"]},
     ],
 
     # ─── S3-KA-001: Lakehouse (Migros/Databricks bağlamına göre güncellendi) ───
@@ -179,6 +203,20 @@ QUESTION_BANKS: dict[str, list[dict]] = {
              "MLflow veya başka bir experiment tracking aracı bağlı mı?",
              "Feature store ile online serving entegrasyonu var mı?",
          ]},
+        {"area": "devops_mlops",
+         "text": "Databricks üzerinde DevOps ve MLOps olgunluğu nedir? CI/CD pipeline'ları notebook'lar için nasıl çalışıyor?",
+         "follow_ups": [
+             "Databricks Asset Bundles (DAB) veya dbx kullanılıyor mu?",
+             "Model registry ve model deployment süreci nasıl?",
+             "Notebook versiyonlama ve code review süreci var mı?",
+         ]},
+        {"area": "disaster_recovery",
+         "text": "Databricks ortamı için DR stratejisi nedir? Farklı bir bölgede standby environment var mı?",
+         "follow_ups": [
+             "Delta tabloları cross-region replikasyonu nasıl yapılıyor?",
+             "Job ve pipeline konfigürasyonları infrastructure-as-code ile yönetiliyor mu?",
+             "RTO ve RPO hedefleri test edildi mi?",
+         ]},
     ],
 
     # ─── S3-AA-005: Governance ───────────────────────────────────────────────
@@ -207,6 +245,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "policy_enforcement",
          "text": "Veri politikaları nasıl tanımlanıyor ve hayata geçiriliyor?",
          "follow_ups": ["Politika ihlalleri nasıl tespit ediliyor?", "Otomatik politika uygulama araçları var mı?"]},
+        {"area": "metadata_management",
+         "text": "Teknik ve iş metadatası nasıl toplanıyor, zenginleştiriliyor ve paylaşılıyor?",
+         "follow_ups": ["Otomatik metadata harvesting var mı?", "Kullanıcıların metadata katkısı için self-serve portalı var mı?"]},
+        {"area": "data_contracts",
+         "text": "Veri üreticisi ve tüketicisi arasında data contract (sözleşme) tanımlı mı?",
+         "follow_ups": ["Şema değişiklik bildirimleri nasıl yapılıyor?", "SLA ihlallerinde eskalasyon süreci var mı?"]},
     ],
 
     # ─── S3-AA-006: Data Product ─────────────────────────────────────────────
@@ -235,6 +279,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "team_structure",
          "text": "Data product ekipleri nasıl organize edilmiş? Federated mi merkezi mi?",
          "follow_ups": ["Platform ekibi ile domain ekibi iş birliği nasıl?", "Yetkinlik transferi nasıl yapılıyor?"]},
+        {"area": "interoperability",
+         "text": "Data product'lar birbirleriyle nasıl entegre olabiliyor? Standart arayüz (API, event) tanımlı mı?",
+         "follow_ups": ["Consumer-driven contract testing uygulanıyor mu?", "Çapraz domain veri akışı nasıl yetkilendiriliyor?"]},
+        {"area": "observability",
+         "text": "Data product operasyonel olgunluğu nasıl ölçülüyor? Kullanım metrikleri izleniyor mu?",
+         "follow_ups": ["Data product 'health score' kavramı var mı?", "Pipeline gecikme ve hata oranları product sahibine raporlanıyor mu?"]},
     ],
 
     # ─── S3-AA-007: CDP (Customer Data Platform) ─────────────────────────────
@@ -263,6 +313,12 @@ QUESTION_BANKS: dict[str, list[dict]] = {
         {"area": "roi_measurement",
          "text": "CDP yatırım getirisi (ROI) nasıl ölçülüyor? Hangi KPI'lar izleniyor?",
          "follow_ups": ["Kişiselleştirme gelir etkisi ölçülüyor mu?", "CDP maliyeti vs kazanım analizi?"]},
+        {"area": "data_freshness",
+         "text": "CDP'deki müşteri profilleri ne sıklıkla güncelleniyor? Stale data riski nasıl yönetiliyor?",
+         "follow_ups": ["Gerçek zamanlı event tetiklemesi var mı?", "Profil güncellik SLA'ları tanımlı mı?"]},
+        {"area": "ecosystem_integration",
+         "text": "CDP hangi ekosistem araçlarıyla entegre? (CRM, loyalty, e-ticaret, call center)",
+         "follow_ups": ["Çift yönlü (bi-directional) senkronizasyon var mı?", "Entegrasyon sağlığı izleniyor mu?"]},
     ],
 }
 

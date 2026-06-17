@@ -17,7 +17,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_COLLECTIONS = ("findings", "evidence", "transcripts")
+_COLLECTIONS = ("findings", "evidence", "transcripts", "documents")
 _EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _VECTOR_SIZE = 384
 
@@ -173,6 +173,69 @@ def search_similar_evidence(
         with_payload=True,
     )
     return [{"score": h.score, **h.payload} for h in hits]
+
+
+# ── Documents (RAG) ───────────────────────────────────────────────────────────
+
+def upsert_document_chunks(
+    doc_id: str,
+    workstream: str,
+    filename: str,
+    chunks: list[str],
+) -> None:
+    from qdrant_client.models import PointStruct
+    client = _client()
+    points = []
+    for i, chunk in enumerate(chunks):
+        point_id = str(uuid.uuid5(uuid.UUID(doc_id) if len(doc_id) == 36 else uuid.uuid4(), str(i)))
+        points.append(PointStruct(
+            id=point_id,
+            vector=_embed(chunk),
+            payload={
+                "doc_id": doc_id,
+                "workstream": workstream,
+                "filename": filename,
+                "chunk_index": i,
+                "text": chunk[:2000],
+            },
+        ))
+    if points:
+        client.upsert(collection_name="documents", points=points)
+
+
+def delete_document_chunks(doc_id: str) -> None:
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    client = _client()
+    client.delete(
+        collection_name="documents",
+        points_selector=Filter(
+            must=[FieldCondition(key="doc_id", match=MatchValue(value=doc_id))]
+        ),
+    )
+
+
+def search_documents(
+    query: str,
+    workstream: str,
+    limit: int = 3,
+    score_threshold: float = 0.4,
+) -> list[dict[str, Any]]:
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    client = _client()
+    try:
+        hits = client.search(
+            collection_name="documents",
+            query_vector=_embed(query),
+            limit=limit,
+            score_threshold=score_threshold,
+            query_filter=Filter(
+                must=[FieldCondition(key="workstream", match=MatchValue(value=workstream))]
+            ),
+            with_payload=True,
+        )
+        return [{"score": h.score, "text": h.payload.get("text", ""), "filename": h.payload.get("filename", "")} for h in hits]
+    except Exception:
+        return []
 
 
 # ── Collection info ────────────────────────────────────────────────────────────

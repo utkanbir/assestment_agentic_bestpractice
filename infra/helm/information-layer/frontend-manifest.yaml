@@ -24,7 +24,7 @@ spec:
       serviceAccountName: aakp-sa
       containers:
         - name: frontend
-          image: aakp/frontend:latest
+          image: aakp/frontend:sprint14
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

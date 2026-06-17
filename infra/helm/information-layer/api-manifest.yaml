@@ -42,7 +42,7 @@ spec:
       serviceAccountName: aakp-sa
       initContainers:
         - name: alembic-migrate
-          image: aakp/api:latest
+          image: aakp/api:sprint14
           imagePullPolicy: IfNotPresent
           command: ["alembic", "upgrade", "head"]
           envFrom:
@@ -52,7 +52,7 @@ spec:
                 name: aakp-api-secret
       containers:
         - name: api
-          image: aakp/api:latest
+          image: aakp/api:sprint14
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

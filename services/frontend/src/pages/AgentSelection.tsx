@@ -28,6 +28,7 @@ function AgentCard({
 
   return (
     <div
+      data-testid={`agent-card-${ws.id}`}
       onClick={onToggle}
       style={{
         background: selected ? "#1e3a5f" : "#1e293b",
@@ -176,6 +177,7 @@ export default function AgentSelection() {
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <button
+          data-testid="agent-launch-btn"
           onClick={handleLaunch}
           disabled={!assessmentId || selected.size === 0 || launching}
           style={{

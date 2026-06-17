@@ -9,9 +9,9 @@ data:
   KC_DB: "postgres"
   KC_DB_URL: "jdbc:postgresql://aakp-postgresql.aakp-information.svc.cluster.local:5432/keycloak"
   KC_DB_USERNAME: "aakp"
-  KC_HOSTNAME: "keycloak.aakp.internal"
+  KC_HOSTNAME_STRICT: "false"
   KC_HTTP_ENABLED: "true"
-  KC_PROXY: "edge"
+  KC_PROXY_HEADERS: "xforwarded"
   KEYCLOAK_ADMIN: "admin"
   # Realm bootstrap: aakp realm + clients created via init job below
 ---
@@ -63,10 +63,10 @@ spec:
             periodSeconds: 10
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
               memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
               cpu: "1000m"
 ---
 apiVersion: v1

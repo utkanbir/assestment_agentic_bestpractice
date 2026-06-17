@@ -120,13 +120,16 @@ function AssessmentCard({ assessment, onClick }: AssessmentCardProps) {
   );
 }
 
+const EMPTY_FORM = { client_name: "", project_name: "", description: "" };
+
 export default function AssessmentOverview() {
   const navigate = useNavigate();
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ client_name: "", project_name: "", status: "pending" });
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -138,16 +141,24 @@ export default function AssessmentOverview() {
 
   useEffect(() => { load(); }, []);
 
+  const openModal = () => { setForm(EMPTY_FORM); setError(""); setShowModal(true); };
+  const closeModal = () => setShowModal(false);
+
   const handleCreate = async () => {
-    if (!form.client_name || !form.project_name) return;
+    if (!form.client_name.trim() || !form.project_name.trim()) {
+      setError("Müşteri adı ve proje adı zorunludur.");
+      return;
+    }
     setSaving(true);
+    setError("");
     try {
-      await createAssessment(form);
-      setShowForm(false);
-      setForm({ client_name: "", project_name: "", status: "pending" });
+      const body: any = { client_name: form.client_name.trim(), project_name: form.project_name.trim() };
+      if (form.description.trim()) body.description = form.description.trim();
+      await createAssessment(body);
+      closeModal();
       load();
     } catch {
-      // ignore
+      setError("Assessment oluşturulamadı. Tekrar deneyin.");
     } finally {
       setSaving(false);
     }
@@ -155,68 +166,87 @@ export default function AssessmentOverview() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      {/* Modal overlay — S8-FA-001 */}
+      {showModal && (
+        <div
+          onClick={closeModal}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)",
+            zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#1e293b", border: "1px solid #3b82f6",
+              borderRadius: 12, padding: 28, width: 480, maxWidth: "90vw",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Yeni Assessment Oluştur</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginBottom: 4 }}>Müşteri Adı *</label>
+                <input
+                  autoFocus
+                  placeholder="örn. Migros Ticaret A.Ş."
+                  value={form.client_name}
+                  onChange={(e) => setForm({ ...form, client_name: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginBottom: 4 }}>Proje Adı *</label>
+                <input
+                  placeholder="örn. Data Platform Assessment 2026"
+                  value={form.project_name}
+                  onChange={(e) => setForm({ ...form, project_name: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: "#94a3b8", display: "block", marginBottom: 4 }}>Açıklama</label>
+                <textarea
+                  placeholder="Projenin kapsamı ve hedefleri…"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                  style={{ ...inputStyle, resize: "vertical" }}
+                />
+              </div>
+              {error && <p style={{ color: "#f87171", fontSize: 12, margin: 0 }}>{error}</p>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
+              <button onClick={closeModal} style={{ ...btnStyle, background: "#334155" }}>İptal</button>
+              <button
+                onClick={handleCreate}
+                disabled={saving}
+                style={{ ...btnStyle, opacity: saving ? 0.6 : 1, minWidth: 100 }}
+              >
+                {saving ? "Oluşturuluyor…" : "Oluştur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Assessment Genel Bakış</h1>
           <p style={{ color: "#94a3b8", fontSize: 14 }}>Tüm değerlendirme projeleri ve bulgu özeti</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={openModal}
           style={{
-            background: "#3b82f6",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "10px 20px",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 14,
+            background: "#3b82f6", color: "#fff", border: "none",
+            borderRadius: 8, padding: "10px 20px", cursor: "pointer",
+            fontWeight: 600, fontSize: 14,
           }}
         >
           + Yeni Assessment
         </button>
       </div>
-
-      {showForm && (
-        <div style={{
-          background: "#1e293b",
-          border: "1px solid #3b82f6",
-          borderRadius: 10,
-          padding: 20,
-          marginBottom: 20,
-        }}>
-          <h3 style={{ marginBottom: 16, fontSize: 15, fontWeight: 600 }}>Yeni Assessment Oluştur</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <input
-              placeholder="Müşteri adı (örn. Migros)"
-              value={form.client_name}
-              onChange={(e) => setForm({ ...form, client_name: e.target.value })}
-              style={inputStyle}
-            />
-            <input
-              placeholder="Proje adı (örn. Data Platform Assessment)"
-              value={form.project_name}
-              onChange={(e) => setForm({ ...form, project_name: e.target.value })}
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-            <button
-              onClick={handleCreate}
-              disabled={saving}
-              style={{ ...btnStyle, opacity: saving ? 0.6 : 1 }}
-            >
-              {saving ? "Oluşturuluyor…" : "Oluştur"}
-            </button>
-            <button
-              onClick={() => setShowForm(false)}
-              style={{ ...btnStyle, background: "#334155" }}
-            >
-              İptal
-            </button>
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <p style={{ color: "#64748b", textAlign: "center", padding: 40 }}>Yükleniyor…</p>
@@ -232,7 +262,7 @@ export default function AssessmentOverview() {
             <AssessmentCard
               key={a.id}
               assessment={a}
-              onClick={() => navigate(`/agents?assessment_id=${a.id}`)}
+              onClick={() => navigate(`/interview?assessment_id=${a.id}`)}
             />
           ))}
         </div>
