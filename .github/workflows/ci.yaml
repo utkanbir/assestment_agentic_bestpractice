@@ -154,16 +154,22 @@ jobs:
           cache: npm
           cache-dependency-path: services/frontend/package-lock.json
 
-      - name: Install API + start server
+      - name: Install API dependencies
+        run: pip install -r services/api/requirements.txt
+
+      - name: Migrate and start API
+        working-directory: services/api
         run: |
-          pip install -r services/api/requirements.txt
-          cd services/api && alembic upgrade head
-          cd services/api && uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          alembic upgrade head
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           for i in $(seq 1 30); do
             curl -sf http://localhost:8000/api/v1/health && break
             sleep 2
           done
-          cd services/api && python -c "import asyncio; from app.seeds.question_bank_seed import seed_all; asyncio.run(seed_all('http://localhost:8000'))"
+
+      - name: Seed question bank
+        working-directory: services/api
+        run: python -c "import asyncio; from app.seeds.question_bank_seed import seed_all; asyncio.run(seed_all('http://localhost:8000'))"
 
       - name: Install frontend + Playwright
         working-directory: services/frontend
