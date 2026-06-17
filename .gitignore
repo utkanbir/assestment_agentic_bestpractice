@@ -42,3 +42,7 @@ logs/
 # Build artifacts
 build/
 *.tmp
+
+# Playwright
+services/frontend/test-results/
+services/frontend/playwright-report/

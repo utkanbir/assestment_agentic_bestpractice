@@ -352,7 +352,9 @@ function SessionPanel({ task }: { task: Task }) {
   const sColor = statusColor[task.status] ?? "#94a3b8";
 
   return (
-    <div style={{
+    <div
+      data-testid={`session-panel-${task.workstream}`}
+      style={{
       background: "#1e293b",
       border: "1px solid #334155",
       borderRadius: 10,

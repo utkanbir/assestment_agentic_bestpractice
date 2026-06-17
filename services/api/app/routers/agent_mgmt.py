@@ -43,6 +43,14 @@ class KnowledgeDocumentOut(BaseModel):
     created_at: datetime
 
 
+class LearningHistoryItem(BaseModel):
+    answer_id: uuid.UUID
+    question_text: str
+    answer_text: str
+    evaluation: str
+    created_at: datetime
+
+
 # ── Metrics ───────────────────────────────────────────────────────────────────
 
 @router.get("/metrics", response_model=list[AgentMetrics])
@@ -163,6 +171,39 @@ async def _compute_metrics(workstream: str, db: AsyncSession) -> AgentMetrics:
         answers_evaluated=answers_evaluated,
         documents_loaded=docs_count,
     )
+
+
+# ── Learning History ──────────────────────────────────────────────────────────
+
+@router.get("/{workstream}/learning-history", response_model=list[LearningHistoryItem])
+async def get_learning_history(workstream: str, db: AsyncSession = Depends(get_db)):
+    """Return past answer evaluations for the workstream (most recent first)."""
+    result = await db.execute(
+        select(
+            Answer.id,
+            Question.text,
+            Answer.text,
+            Answer.evaluation,
+            Answer.created_at,
+        )
+        .join(Question, Answer.question_id == Question.id)
+        .join(Interview, Question.interview_id == Interview.id)
+        .join(Task, Interview.task_id == Task.id)
+        .where(Task.workstream == workstream)
+        .where(Answer.evaluation.isnot(None))
+        .order_by(Answer.created_at.desc())
+        .limit(50)
+    )
+    return [
+        LearningHistoryItem(
+            answer_id=row[0],
+            question_text=row[1],
+            answer_text=row[2],
+            evaluation=row[3],
+            created_at=row[4],
+        )
+        for row in result.all()
+    ]
 
 
 # ── Knowledge Documents (RAG) ─────────────────────────────────────────────────

@@ -3,8 +3,8 @@ import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   listWorkstreamQuestions,
+  createWorkstreamQuestion,
   listQuestions,
-  addQuestion,
   approveQuestion,
   suggestBankQuestions,
   WorkstreamQuestion,
@@ -324,14 +324,9 @@ export default function QuestionManagement() {
     const text = newQuestionText.trim();
     if (!text) return;
 
-    if (!interviewId) {
-      alert("Soru eklemek için URL'de interview_id gerekli");
-      return;
-    }
-
     setAdding(true);
     try {
-      await addQuestion(interviewId, text, bankQuestions.length + 1);
+      await createWorkstreamQuestion(workstream, text, bankQuestions.length + 1);
       setNewQuestionText("");
       loadBankQuestions();
     } catch {
@@ -358,9 +353,9 @@ export default function QuestionManagement() {
 
   const handleAcceptSuggestion = async (index: number) => {
     const item = agentSuggestedQuestions[index];
-    if (!item || !interviewId) return;
+    if (!item) return;
     try {
-      await addQuestion(interviewId, item.text, bankQuestions.length + index + 1);
+      await createWorkstreamQuestion(workstream, item.text, bankQuestions.length + index + 1);
       setAgentSuggestedQuestions(prev => prev.map((q, i) => i === index ? { ...q, accepted: true } : q));
       loadBankQuestions();
     } catch { /* ignore */ }

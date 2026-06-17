@@ -63,7 +63,8 @@ function QuestionCard({ question, index }: { question: Question; index: number }
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [answers, setAnswers] = useState<AnswerWithEval[]>([]);
-  const [evaluating, setEvaluating] = useState(false);
+  const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
+  const [evalErrors, setEvalErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     listAnswers(question.id).then(setAnswers).catch(() => {});
@@ -76,15 +77,29 @@ function QuestionCard({ question, index }: { question: Question; index: number }
       const ans = await addAnswerFull(question.id, text.trim());
       setSaved(true);
       setText("");
-      // Auto-evaluate in background
-      setEvaluating(true);
-      evaluateAnswer(ans.id)
-        .then(ev => setAnswers(prev => prev.map(a => a.id === ans.id ? { ...a, evaluation: ev.evaluation } : a)))
-        .catch(() => {})
-        .finally(() => setEvaluating(false));
       setAnswers(prev => [...prev, ans]);
       setSaved(false);
     } catch { /* ignore */ } finally { setSaving(false); }
+  };
+
+  const handleEvaluate = async (answerId: string) => {
+    setEvaluatingId(answerId);
+    setEvalErrors(prev => {
+      const next = { ...prev };
+      delete next[answerId];
+      return next;
+    });
+    try {
+      const ev = await evaluateAnswer(answerId);
+      setAnswers(prev => prev.map(a => a.id === answerId ? { ...a, evaluation: ev.evaluation } : a));
+    } catch (e) {
+      const msg = e instanceof DOMException && e.name === "AbortError"
+        ? "Değerlendirme zaman aşımına uğradı (90 sn). Tekrar deneyin."
+        : "Değerlendirme başarısız oldu. Lütfen tekrar deneyin.";
+      setEvalErrors(prev => ({ ...prev, [answerId]: msg }));
+    } finally {
+      setEvaluatingId(null);
+    }
   };
 
   return (
@@ -104,15 +119,33 @@ function QuestionCard({ question, index }: { question: Question; index: number }
             <p style={{ fontSize: 13, color: "#cbd5e1", margin: 0, lineHeight: 1.6 }}>{ans.text}</p>
           </div>
           {ans.evaluation ? (
-            <div style={{ background: "#0a1a2f", border: "1px solid #1e3a5f", borderLeft: "3px solid #3b82f6", borderRadius: 6, padding: "8px 12px" }}>
+            <div style={{ background: "#0a1a2f", border: "1px solid #1e3a5f", borderLeft: "3px solid #3b82f6", borderRadius: 6, padding: "8px 12px", marginBottom: 6 }}>
               <p style={{ fontSize: 11, color: "#60a5fa", margin: "0 0 4px 0", textTransform: "uppercase", fontWeight: 700 }}>Agent Değerlendirmesi</p>
               <p style={{ fontSize: 12, color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>{ans.evaluation}</p>
             </div>
-          ) : evaluating ? (
-            <div style={{ fontSize: 11, color: "#475569", padding: "6px 12px", fontStyle: "italic" }}>
+          ) : null}
+          {evaluatingId === ans.id ? (
+            <div style={{ fontSize: 11, color: "#475569", padding: "6px 0", fontStyle: "italic", marginBottom: 6 }}>
               ⏳ Agent değerlendiriyor…
             </div>
           ) : null}
+          {evalErrors[ans.id] ? (
+            <p style={{ fontSize: 11, color: "#f87171", margin: "0 0 6px 0" }}>{evalErrors[ans.id]}</p>
+          ) : null}
+          <button
+            onClick={() => handleEvaluate(ans.id)}
+            disabled={evaluatingId !== null}
+            style={{
+              padding: "5px 12px", borderRadius: 6,
+              border: ans.evaluation ? "1px solid #475569" : "none",
+              background: evaluatingId !== null ? "#334155" : ans.evaluation ? "transparent" : "#3b82f6",
+              color: evaluatingId !== null ? "#64748b" : ans.evaluation ? "#94a3b8" : "#fff",
+              cursor: evaluatingId !== null ? "not-allowed" : "pointer",
+              fontSize: 12, fontWeight: ans.evaluation ? 400 : 600,
+            }}
+          >
+            {ans.evaluation ? "Yeniden değerlendir" : "Değerlendir"}
+          </button>
         </div>
       ))}
 
@@ -153,12 +186,14 @@ export default function InterviewRoom() {
   // ── Workstream seçilince: task → interview → sorular ──────────────────────
   useEffect(() => {
     if (!assessmentId) return;
+    let cancelled = false;
     (async () => {
       setLoading(true);
       setTask(null); setInterview(null); setQuestions([]); setPendingSuggestions([]);
       try {
         // 1. Bu workstream'e ait task bul ya da oluştur
         const tasks = await listTasks(assessmentId);
+        if (cancelled) return;
         let t = tasks.find(x => x.workstream === activeWs) ?? null;
         if (!t) {
           t = await createTask({
@@ -169,35 +204,42 @@ export default function InterviewRoom() {
             status: "in_progress",
           });
         }
+        if (cancelled) return;
         setTask(t);
 
         // 2. Interview bul ya da oluştur
         const existing = await listInterviews(t.id);
+        if (cancelled) return;
         const iv = existing.length > 0
           ? existing[0]
           : await createInterview({ task_id: t.id, interviewee_name: "Consultant" });
+        if (cancelled) return;
         setInterview(iv);
 
         // 3. Soruları yükle — yoksa question bank'ten doldur
         let qs = await listQuestions(iv.id);
+        if (cancelled) return;
         if (qs.length === 0) {
           const bank = await listWorkstreamQuestions(activeWs);
           for (const bq of bank) {
+            if (cancelled) return;
             await addQuestion(iv.id, bq.text, bq.order);
           }
           qs = await listQuestions(iv.id);
         }
+        if (cancelled) return;
 
         const pending = qs.filter(q => q.agent_suggested && q.approval_status === "pending");
         const normal  = qs.filter(q => !(q.agent_suggested && q.approval_status === "pending"));
         setQuestions(normal);
         setPendingSuggestions(pending);
       } catch (e) {
-        console.error(e);
+        if (!cancelled) console.error(e);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [assessmentId, activeWs]);
 
   // ── Agent status polling ────────────────────────────────────────────────────
@@ -266,6 +308,7 @@ export default function InterviewRoom() {
             return (
               <button
                 key={ws.id}
+                data-testid={`ws-tab-${ws.id}`}
                 onClick={() => setActiveWs(ws.id)}
                 style={{
                   width: "100%", textAlign: "left", padding: "9px 12px",

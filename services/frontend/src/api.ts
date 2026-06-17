@@ -145,6 +145,17 @@ export interface WorkstreamQuestion {
 export const listWorkstreamQuestions = (workstream: string) =>
   fetchJSON<WorkstreamQuestion[]>(`/question-bank?workstream=${workstream}`);
 
+export const createWorkstreamQuestion = (
+  workstream: string,
+  text: string,
+  order: number,
+  area = "general",
+) =>
+  fetchJSON<WorkstreamQuestion>("/question-bank", {
+    method: "POST",
+    body: JSON.stringify({ workstream, area, text, order, is_active: true }),
+  });
+
 // ── Maturity ─────────────────────────────────────────────────────────────────
 
 export interface MaturityScoreItem {
@@ -284,10 +295,21 @@ export const addAnswerFull = (questionId: string, text: string) =>
 export const listAnswers = (questionId: string) =>
   fetchJSON<AnswerWithEval[]>(`/interviews/questions/${questionId}/answers`);
 
-export const evaluateAnswer = (answerId: string) =>
-  fetchJSON<{ answer_id: string; evaluation: string }>(`/interviews/answers/${answerId}/evaluate`, {
-    method: "POST",
-  });
+/** Qdrant + LLM evaluation can take up to ~30s; allow headroom for slow networks. */
+const EVALUATE_TIMEOUT_MS = 90_000;
+
+export const evaluateAnswer = async (answerId: string) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), EVALUATE_TIMEOUT_MS);
+  try {
+    return await fetchJSON<{ answer_id: string; evaluation: string }>(
+      `/interviews/answers/${answerId}/evaluate`,
+      { method: "POST", signal: controller.signal },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 // ── Question bank agent suggestions (S11-BA-003) ─────────────────────────────
 
@@ -317,6 +339,17 @@ export const getAllAgentMetrics = () =>
 
 export const getWorkstreamMetrics = (workstream: string) =>
   fetchJSON<AgentMetrics>(`/agents/metrics/${workstream}`);
+
+export interface LearningHistoryItem {
+  answer_id: string;
+  question_text: string;
+  answer_text: string;
+  evaluation: string;
+  created_at: string;
+}
+
+export const getLearningHistory = (workstream: string) =>
+  fetchJSON<LearningHistoryItem[]>(`/agents/${workstream}/learning-history`);
 
 // ── Knowledge Documents (S11-BA-005) ─────────────────────────────────────────
 
