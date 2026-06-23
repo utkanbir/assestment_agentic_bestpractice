@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://:aakp-redis-secret@aakp-redis.aakp-agent.svc.cluster.local:6379/0"
     kafka_bootstrap: str = "aakp-kafka.aakp-data.svc.cluster.local:9092"
     fuseki_url: str = "http://aakp-fuseki.aakp-knowledge.svc.cluster.local:3030"
+    fuseki_public_url: str = "http://127.0.0.1:3030"
     fuseki_dataset: str = "aakp"
     qdrant_url: str = "http://aakp-qdrant.aakp-information.svc.cluster.local:6333"
     openmetadata_url: str = "http://aakp-openmetadata.aakp-information.svc.cluster.local:8585"

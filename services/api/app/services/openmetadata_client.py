@@ -21,8 +21,8 @@ _OM_BASE = getattr(settings, "openmetadata_url",
                    "http://aakp-openmetadata.aakp-information.svc.cluster.local:8585")
 _OM_API = f"{_OM_BASE}/api/v1"
 
-# OpenMetadata basic auth (dev: admin/admin)
-_OM_AUTH = ("admin", "admin")
+# OpenMetadata basic auth (dev: admin@open-metadata.org / admin)
+_OM_AUTH = ("admin@open-metadata.org", "admin")
 
 # Custom type definition for AssessmentFinding
 _CUSTOM_TYPE_PAYLOAD = {
@@ -144,6 +144,27 @@ async def add_lineage(
         }
     }
     return await _om_request("PUT", "/lineage", json_body=payload)
+
+
+async def fetch_data_product_summary(display_name: str) -> str | None:
+    """Best-effort read of OM data product documentation (agent contract discovery)."""
+    encoded = display_name.replace(" ", "%20")
+    for path in (
+        f"/dataProducts/name/{encoded}",
+        f"/domains/name/Assessment/dataProducts/name/{encoded}",
+    ):
+        data = await _om_request("GET", path)
+        if not data:
+            continue
+        desc = (data.get("description") or "").strip()
+        domain = data.get("domain", {}).get("displayName") or data.get("domain", {}).get("name")
+        parts = [f"OM data product '{data.get('displayName') or display_name}'"]
+        if domain:
+            parts.append(f"domain={domain}")
+        if desc:
+            parts.append(desc[:300])
+        return "; ".join(parts)
+    return None
 
 
 async def add_finding_lineage(

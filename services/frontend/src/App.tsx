@@ -1,161 +1,225 @@
-// S7-FA-006: Assessment overview general status dashboard
-// S7-FA-008: Responsive design and UX polish
-import { useState } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 import AssessmentOverview from "./pages/AssessmentOverview";
-import AgentSelection from "./pages/AgentSelection";
-import ParallelSessions from "./pages/ParallelSessions";
 import RiskHeatmap from "./pages/RiskHeatmap";
 import ExecutiveSummaryPage from "./pages/ExecutiveSummary";
 import ConsolidatedRoadmap from "./pages/ConsolidatedRoadmap";
 import CrossTaskDependencies from "./pages/CrossTaskDependencies";
 import ApprovalQueue from "./pages/ApprovalQueue";
 import MaturityDashboard from "./pages/MaturityDashboard";
-import ReportExport from "./pages/ReportExport";
+import ReportStudio from "./pages/ReportStudio";
+import ChatPage from "./pages/ChatPage";
 import CatalogLink from "./pages/CatalogLink";
 import InterviewRoom from "./pages/InterviewRoom";
 import QuestionManagement from "./pages/QuestionManagement";
+import ConsultantManagement from "./pages/ConsultantManagement";
 import AjanYonetimi from "./pages/AjanYonetimi";
+import KnowledgeArchitecture from "./pages/KnowledgeArchitecture";
+import OntologyBrowser from "./pages/OntologyBrowser";
+import KnowledgeGraphExplorer from "./pages/KnowledgeGraphExplorer";
+import AgentKnowledgeGraphPage from "./pages/AgentKnowledgeGraphPage";
+import TechStackPage from "./pages/TechStackPage";
+import ExecutionPlan from "./pages/ExecutionPlan";
+import ChatWidget from "./components/ChatWidget";
+import AppSidebar, { type NavItem } from "./components/AppSidebar";
+import { AssessmentProvider, RequireAssessment, useAssessment, useAssessmentNavLink } from "./context/AssessmentContext";
+import { getPendingApprovals, getPendingQuestions, getSimulationStatus, type SimulationProgress } from "./api";
 
-const navStyle = (active: boolean): React.CSSProperties => ({
-  padding: "7px 14px",
-  borderRadius: 6,
-  textDecoration: "none",
-  color: active ? "#fff" : "#94a3b8",
-  background: active ? "#3b82f6" : "transparent",
-  fontWeight: active ? 600 : 400,
-  fontSize: 13,
-  transition: "all 0.15s",
-  whiteSpace: "nowrap",
-});
+function AppShell() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pendingBadge, setPendingBadge] = useState(0);
+  const [simHeaderStatus, setSimHeaderStatus] = useState<string | null>(null);
+  const [simHeaderProgress, setSimHeaderProgress] = useState<SimulationProgress | null>(null);
+  const { assessmentId, assessments, selectedAssessment, setAssessmentId } = useAssessment();
+  const withAssessment = useAssessmentNavLink();
 
-export default function App() {
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const links = [
-    { to: "/", label: "Genel Bakış", end: true },
-    { to: "/interview", label: "Interview" },
-    { to: "/questions", label: "Sorular" },
-    { to: "/ajan-yonetimi", label: "Ajan Yönetimi" },
-    { to: "/approvals", label: "Onay Kuyruğu" },
-    { to: "/heatmap", label: "Risk Heatmap" },
-    { to: "/maturity", label: "Olgunluk" },
-    { to: "/executive", label: "Executive" },
-    { to: "/roadmap", label: "Roadmap" },
-    { to: "/dependencies", label: "Bağımlılıklar" },
-    { to: "/report", label: "PDF Rapor" },
-    { to: "/catalog", label: "Katalog" },
+  const links: NavItem[] = [
+    { to: "/", label: "Genel Bakış", icon: "home", group: "Genel", end: true },
+    { to: withAssessment("/interview"), label: "Interview", icon: "mic", group: "Genel" },
+    { to: withAssessment("/questions"), label: "Sorular", icon: "list", group: "Genel" },
+    { to: "/danisman", label: "Danışman", icon: "users", group: "Genel" },
+    { to: withAssessment("/ajan-yonetimi"), label: "Ajan Yönetimi", icon: "bot", group: "Knowledge" },
+    { to: withAssessment("/knowledge-graph"), label: "Knowledge Graph", icon: "graph", group: "Knowledge", indent: true },
+    { to: withAssessment("/mimari"), label: "Mimari", icon: "layers", group: "Knowledge" },
+    { to: "/teknoloji", label: "Teknoloji Stack", icon: "stack", group: "Knowledge" },
+    { to: withAssessment("/yurutme-plani"), label: "Yürütme Planı", icon: "flow", group: "Operasyon" },
+    { to: withAssessment("/approvals"), label: "İnceleme Merkezi", icon: "clipboard", group: "Analiz", badge: true },
+    { to: withAssessment("/heatmap"), label: "Risk Heatmap", icon: "flame", group: "Analiz" },
+    { to: withAssessment("/maturity"), label: "Olgunluk", icon: "chart", group: "Analiz" },
+    { to: withAssessment("/executive"), label: "Yönetici Özeti", icon: "briefcase", group: "Analiz" },
+    { to: withAssessment("/roadmap"), label: "Roadmap", icon: "map", group: "Analiz" },
+    { to: withAssessment("/report"), label: "Rapor Stüdyosu", icon: "document", group: "Analiz" },
+    { to: withAssessment("/chat"), label: "Chat", icon: "message", group: "Operasyon" },
   ];
 
+  useEffect(() => {
+    if (!assessmentId) {
+      setPendingBadge(0);
+      return;
+    }
+    const load = async () => {
+      try {
+        const [queue, questions] = await Promise.all([
+          getPendingApprovals(assessmentId),
+          getPendingQuestions(assessmentId),
+        ]);
+        setPendingBadge(queue.total + questions.length);
+      } catch {
+        setPendingBadge(0);
+      }
+    };
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, [assessmentId]);
+
+  useEffect(() => {
+    if (!assessmentId || selectedAssessment?.assessment_mode !== "simulated") {
+      setSimHeaderStatus(null);
+      setSimHeaderProgress(null);
+      return;
+    }
+    const poll = async () => {
+      try {
+        const st = await getSimulationStatus(assessmentId);
+        setSimHeaderStatus(st.simulation_status);
+        setSimHeaderProgress(st.simulation_progress);
+      } catch {
+        setSimHeaderStatus(null);
+        setSimHeaderProgress(null);
+      }
+    };
+    void poll();
+    const t = setInterval(() => { void poll(); }, 3000);
+    return () => clearInterval(t);
+  }, [assessmentId, selectedAssessment?.assessment_mode]);
+
+  const simHeaderPct = Math.min(
+    100,
+    ((simHeaderProgress?.questions_evaluated ?? 0) / Math.max(1, simHeaderProgress?.total_questions_planned ?? 1)) * 100,
+  );
+  const showSimHeaderProgress = selectedAssessment?.assessment_mode === "simulated" && simHeaderStatus === "running";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#0b0f1a", color: "#e2e8f0" }}>
-      {/* Top nav — S7-FA-008: responsive */}
-      <nav style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "10px 20px",
-        borderBottom: "1px solid #1e293b",
-        background: "#0f1117",
-        flexWrap: "wrap",
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-      }}>
-        <span style={{ fontWeight: 800, fontSize: 17, marginRight: 16, color: "#60a5fa", flexShrink: 0 }}>
-          AAKP
-        </span>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#0b0f1a", color: "#e2e8f0" }}>
+      <AppSidebar
+        items={links}
+        pendingBadge={pendingBadge}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+      />
 
-        {/* Desktop nav */}
-        <div style={{ display: "flex", gap: 2, flexWrap: "wrap", flex: 1 }}>
-          {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              end={l.end}
-              style={({ isActive }) => navStyle(isActive)}
-            >
-              {l.label}
-            </NavLink>
-          ))}
-        </div>
-
-        {/* Mobile hamburger */}
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <header
+          data-testid="app-topbar"
           style={{
-            display: "none",
-            background: "transparent",
-            border: "1px solid #334155",
-            borderRadius: 6,
-            padding: "6px 10px",
-            color: "#94a3b8",
-            cursor: "pointer",
-            fontSize: 18,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 12,
+            padding: "10px 20px",
+            borderBottom: "1px solid #1e293b",
+            background: "#0f1117",
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
           }}
-          aria-label="Menu"
         >
-          ☰
-        </button>
-      </nav>
-
-      {/* Mobile dropdown */}
-      {menuOpen && (
-        <div style={{
-          background: "#0f1117",
-          borderBottom: "1px solid #1e293b",
-          padding: "8px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}>
-          {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              end={l.end}
-              onClick={() => setMenuOpen(false)}
-              style={({ isActive }) => ({ ...navStyle(isActive), display: "block" })}
+          <select
+            data-testid="assessment-selector"
+            value={assessmentId}
+            onChange={(e) => setAssessmentId(e.target.value)}
+            style={{
+              background: "#1e293b",
+              color: "#e2e8f0",
+              border: "1px solid #334155",
+              borderRadius: 6,
+              padding: "6px 8px",
+              fontSize: 12,
+              minWidth: 220,
+            }}
+          >
+            <option value="">Assessment seçin</option>
+            {assessments.map((a) => (
+              <option key={a.id} value={a.id} style={a.assessment_mode === "simulated" ? { color: "#c084fc" } : undefined}>
+                {a.assessment_mode === "simulated" ? "🤖 " : ""}{a.client_name} - {a.project_name}
+              </option>
+            ))}
+          </select>
+          {showSimHeaderProgress && (
+            <div
+              data-testid="header-simulation-progress"
+              style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 180 }}
             >
-              {l.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
+              <span style={{ fontSize: 11, color: "#c084fc", whiteSpace: "nowrap" }}>
+                Sim {simHeaderProgress?.questions_evaluated ?? 0}/{simHeaderProgress?.total_questions_planned ?? "…"}
+              </span>
+              <div style={{ flex: 1, height: 5, background: "#581c87", borderRadius: 3, overflow: "hidden", minWidth: 80 }}>
+                <div style={{ height: "100%", width: `${simHeaderPct}%`, background: "#a78bfa", transition: "width 0.3s" }} />
+              </div>
+            </div>
+          )}
+          {selectedAssessment && (
+            <span style={{
+              fontSize: 11,
+              color: selectedAssessment.assessment_mode === "simulated" ? "#c084fc" : "#60a5fa",
+              border: `1px solid ${selectedAssessment.assessment_mode === "simulated" ? "#7e22ce" : "#1d4ed8"}`,
+              borderRadius: 999, padding: "4px 8px",
+            }}>
+              {selectedAssessment.assessment_mode === "simulated" ? "AI Simulated · " : ""}
+              {selectedAssessment.client_name}
+            </span>
+          )}
+        </header>
 
-      {/* Page content */}
-      <main style={{ flex: 1, padding: "24px 20px", maxWidth: "100%", boxSizing: "border-box" }}>
-        <Routes>
-          <Route path="/" element={<AssessmentOverview />} />
-          <Route path="/agents" element={<AgentSelection />} />
-          <Route path="/sessions" element={<ParallelSessions />} />
-          <Route path="/interview" element={<InterviewRoom />} />
-          <Route path="/questions" element={<QuestionManagement />} />
-          <Route path="/ajan-yonetimi" element={<AjanYonetimi />} />
-          <Route path="/approvals" element={<ApprovalQueue />} />
-          <Route path="/heatmap" element={<RiskHeatmap />} />
-          <Route path="/maturity" element={<MaturityDashboard />} />
-          <Route path="/executive" element={<ExecutiveSummaryPage />} />
-          <Route path="/roadmap" element={<ConsolidatedRoadmap />} />
-          <Route path="/dependencies" element={<CrossTaskDependencies />} />
-          <Route path="/report" element={<ReportExport />} />
-          <Route path="/catalog" element={<CatalogLink />} />
-        </Routes>
-      </main>
+        <main style={{ flex: 1, padding: "24px 20px", overflow: "auto", boxSizing: "border-box" }}>
+          <Routes>
+            <Route path="/" element={<AssessmentOverview />} />
+            <Route path="/interview" element={<RequireAssessment><InterviewRoom /></RequireAssessment>} />
+            <Route path="/questions" element={<RequireAssessment><QuestionManagement /></RequireAssessment>} />
+            <Route path="/danisman" element={<ConsultantManagement />} />
+            <Route path="/ajan-yonetimi" element={<RequireAssessment><AjanYonetimi /></RequireAssessment>} />
+            <Route path="/knowledge-graph" element={<RequireAssessment><AgentKnowledgeGraphPage /></RequireAssessment>} />
+            <Route path="/mimari" element={<RequireAssessment><KnowledgeArchitecture /></RequireAssessment>} />
+            <Route path="/teknoloji" element={<TechStackPage />} />
+            <Route path="/ontoloji" element={<RequireAssessment><OntologyBrowser /></RequireAssessment>} />
+            <Route path="/kg-graf" element={<RequireAssessment><KnowledgeGraphExplorer /></RequireAssessment>} />
+            <Route path="/yurutme-plani" element={<RequireAssessment><ExecutionPlan /></RequireAssessment>} />
+            <Route path="/approvals" element={<RequireAssessment><ApprovalQueue /></RequireAssessment>} />
+            <Route path="/heatmap" element={<RequireAssessment><RiskHeatmap /></RequireAssessment>} />
+            <Route path="/maturity" element={<RequireAssessment><MaturityDashboard /></RequireAssessment>} />
+            <Route path="/executive" element={<RequireAssessment><ExecutiveSummaryPage /></RequireAssessment>} />
+            <Route path="/roadmap" element={<RequireAssessment><ConsolidatedRoadmap /></RequireAssessment>} />
+            <Route path="/dependencies" element={<RequireAssessment><CrossTaskDependencies /></RequireAssessment>} />
+            <Route path="/report" element={<RequireAssessment><ReportStudio /></RequireAssessment>} />
+            <Route path="/chat" element={<RequireAssessment><ChatPage /></RequireAssessment>} />
+            <Route path="/catalog" element={<RequireAssessment><CatalogLink /></RequireAssessment>} />
+          </Routes>
+        </main>
 
-      {/* Footer — S7-FA-008: UX polish */}
-      <footer style={{
-        padding: "10px 20px",
-        borderTop: "1px solid #1e293b",
-        fontSize: 11,
-        color: "#475569",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}>
-        <span>AAKP — AI Assessment Knowledge Platform</span>
-        <span>Migros Ticaret A.Ş. © 2026</span>
-      </footer>
+        <footer style={{
+          padding: "10px 20px",
+          borderTop: "1px solid #1e293b",
+          fontSize: 11,
+          color: "#475569",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}>
+          <span>AAKP — AI Assessment Knowledge Platform</span>
+          <span>Migros Ticaret A.Ş. © 2026</span>
+        </footer>
+      </div>
+
+      <ChatWidget />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AssessmentProvider>
+      <AppShell />
+    </AssessmentProvider>
   );
 }

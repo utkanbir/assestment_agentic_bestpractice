@@ -1,0 +1,140 @@
+# AAKP 4-layer architecture registry — source of truth for Knowledge Architecture UI
+# Derived from ARCHITECTURE_DECISIONS.md
+# Framework narrative (minimum loop vs optional lakehouse): SEMANTIC_INTELLIGENCE_FRAMEWORK.md Appendix B
+
+layers:
+  - id: data
+    name: Data Layer
+    description: Raw artifact storage (Bronze medallion)
+    namespace: aakp-data
+    technologies:
+      - id: minio
+        name: MinIO
+        role: S3-compatible object storage
+        configured: true
+        active_in_api: true
+        console_url: ""
+        link_mode: internal
+        notes: "Deployed in cluster; API integration deferred to future sprint"
+      - id: iceberg
+        name: Apache Iceberg
+        role: Table format with schema evolution
+        configured: true
+        active_in_api: false
+        console_url: ""
+      - id: kafka
+        name: Kafka
+        role: Async event bus (slow path)
+        configured: true
+        active_in_api: true
+        console_url: ""
+        link_mode: internal
+        notes: "Event bus configured; MCP publish only"
+      - id: trino
+        name: Trino
+        role: Cross-source query federation
+        configured: true
+        active_in_api: false
+        console_url: ""
+        link_mode: internal
+        notes: "Cluster-internal query engine (aakp-trino.aakp-data)"
+
+  - id: information
+    name: Information Layer
+    description: Domain objects (Silver), published data products (Gold), contracts, and vector search
+    namespace: aakp-information
+    technologies:
+      - id: postgresql
+        name: PostgreSQL
+        role: Domain information objects (Silver) and published data products (Gold)
+        configured: true
+        active_in_api: true
+        console_url: "/health/db"
+        link_mode: app
+      - id: qdrant
+        name: Qdrant
+        role: Vector embeddings for RAG and semantic search
+        configured: true
+        active_in_api: true
+        console_url: ""
+        link_mode: internal
+        notes: "Embeddings via API (/api/v1); dashboard cluster-internal"
+      - id: fastapi
+        name: FastAPI
+        role: REST API and MCP server
+        configured: true
+        active_in_api: true
+        console_url: "/api/v1/docs"
+        link_mode: app
+      - id: openmetadata
+        name: OpenMetadata
+        role: Data catalog, lineage, contracts
+        configured: true
+        active_in_api: true
+        console_url: "/openmetadata/"
+        link_mode: app
+
+  - id: knowledge
+    name: Knowledge Layer
+    description: Ontology-driven semantic layer
+    namespace: aakp-knowledge
+    technologies:
+      - id: fuseki
+        name: Apache Jena Fuseki
+        role: RDF triple store and SPARQL endpoint
+        configured: true
+        active_in_api: true
+        console_url: ""
+        link_mode: internal
+        notes: "SPARQL via API knowledge layer"
+      - id: owl
+        name: OWL / RDF
+        role: Enterprise ontology (TBox)
+        configured: true
+        active_in_api: true
+        console_url: "/ontoloji"
+        link_mode: app
+      - id: sparql
+        name: SPARQL
+        role: Graph queries and inserts
+        configured: true
+        active_in_api: true
+        console_url: "/knowledge-graph"
+        link_mode: app
+      - id: shacl
+        name: SHACL
+        role: Graph validation constraints
+        configured: true
+        active_in_api: true
+        console_url: ""
+        link_mode: internal
+      - id: jena_reasoner
+        name: Jena Reasoner
+        role: OWL inference rules
+        configured: true
+        active_in_api: false
+        console_url: ""
+
+  - id: agent
+    name: Agent Layer
+    description: Orchestration and LLM reasoning
+    namespace: aakp-agent
+    technologies:
+      - id: claude
+        name: Claude API
+        role: Answer evaluation and follow-up generation
+        configured: true
+        active_in_api: true
+        console_url: ""
+      - id: langgraph
+        name: LangGraph
+        role: Multi-agent orchestration
+        configured: true
+        active_in_api: false
+        console_url: ""
+      - id: redis
+        name: Redis
+        role: Ephemeral agent session state
+        configured: true
+        active_in_api: false
+        console_url: ""

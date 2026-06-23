@@ -8,6 +8,12 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:8000",
       "/ws": { target: "ws://localhost:8000", ws: true },
+      "/health": "http://localhost:8000",
+      "/openmetadata": {
+        target: "http://localhost:8585",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/openmetadata/, ""),
+      },
     },
   },
   build: { outDir: "dist" },

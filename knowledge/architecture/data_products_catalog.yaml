@@ -1,0 +1,343 @@
+# AAKP Information Layer — Domain Objects & Published Data Products
+# ADR: ARCHITECTURE_DECISIONS.md §4.2 — Domain Information Objects vs Published Data Products
+# Tartışma: knowledge/architecture/DATA_PRODUCTS_SEMANTIC_LAYER_DISCUSSION.md
+
+version: "1.2"
+domain: assessment
+updated: "2026-06-18"
+framework_doc: knowledge/architecture/SEMANTIC_INTELLIGENCE_FRAMEWORK.md
+framework_version: "1.3"
+
+classification_types:
+  container: Engagement or scope root — NOT a data product
+  domain_information_object: Silver structured domain entity — workflow, validation, internal API
+  published_data_product: Gold published product — contract, lineage, consumption port
+  composite_published_data_product: Gold read model composed from domain objects and/or other products
+  derived_index_port: Derived search/index port of a published product (not standalone product)
+  knowledge_asset: Knowledge Layer entity (Fuseki) — not Information domain object
+
+product_maturity_tiers:
+  L0_listed: Catalog entry with owner; contract optional (transition)
+  L1_contracted: Schema + freshness/completeness expectation
+  L2_governed: SLA, quality checks, approval workflow
+
+# ─── Containers (NOT data products) ───────────────────────────────────────────
+
+containers:
+  - id: assessment
+    name: Assessment
+    classification: container
+    medallion: n/a
+    ontology_class: aakp:Assessment
+    description: Engagement container / domain root
+    is_data_product: false
+
+  - id: task
+    name: Task
+    classification: container
+    medallion: n/a
+    ontology_class: aakp:Task
+    description: Workstream scope within an assessment
+    is_data_product: false
+
+# ─── Domain Information Objects (Silver) ────────────────────────────────────
+
+domain_information_objects:
+  - id: interview
+    name: Interview
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Interview
+    source:
+      tables: [interviews]
+    internal_api: GET /api/v1/interviews/{interview_id}
+    agent_access: internal_only
+    kg_mapping: instance_1to1
+
+  - id: question
+    name: Question (session copy)
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Question
+    source:
+      tables: [questions]
+    internal_api: GET /api/v1/interviews/{interview_id}/questions
+    agent_access: internal_only
+    kg_mapping: instance_1to1
+    notes: >
+      Runtime copy of bank question text for one interview session (Answer/Evidence chain).
+      Not the canonical Question — see workstream_question. Framework treats this as
+      implementation detail, not a separate domain concept.
+
+  - id: answer
+    name: Answer
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Answer
+    source:
+      tables: [answers]
+    internal_api: GET /api/v1/questions/{question_id}/answers
+    agent_access: internal_only
+    kg_mapping: instance_1to1
+    notes: Customer response text; workflow write path via interview UI
+
+  - id: answer_evaluation
+    name: Answer Evaluation
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Evaluation
+    source:
+      tables: [answers.evaluation]
+    internal_api: POST /api/v1/answers/{answer_id}/evaluate
+    agent_access: internal_only
+    kg_mapping: instance_1to1
+    notes: AI evaluation comment on Answer; distinct from Maturity Score
+
+  - id: evidence
+    name: Evidence
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Evidence
+    source:
+      tables: [evidences]
+    internal_api: GET /api/v1/evidences/{evidence_id}
+    agent_access: internal_workflow
+    kg_mapping: instance_1to1
+    notes: Metadata + pointer to Bronze artifact in Data Layer
+
+  - id: finding
+    name: Finding
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Finding
+    source:
+      tables: [findings]
+    internal_api: GET /api/v1/findings?task_id={task_id}
+    agent_access: internal_workflow
+    kg_mapping: instance_1to1
+  - id: risk
+    name: Risk
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Risk
+    source:
+      tables: [risks]
+    internal_api: GET /api/v1/risks/{risk_id}
+    agent_access: internal_workflow
+    kg_mapping: instance_1to1
+
+  - id: recommendation
+    name: Recommendation
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:Recommendation
+    source:
+      tables: [recommendations]
+    internal_api: GET /api/v1/recommendations/{recommendation_id}
+    agent_access: internal_workflow
+    kg_mapping: instance_1to1
+
+  - id: consultant_comment
+    name: Consultant Comment
+    classification: domain_information_object
+    medallion: silver
+    source:
+      tables: [answer_consultant_comments]
+    internal_api: PATCH /api/v1/answers/{answer_id}/consultant-comments
+    agent_access: internal_only
+    kg_mapping: planned
+
+  - id: maturity_score
+    name: Maturity Score
+    classification: domain_information_object
+    medallion: silver
+    ontology_class: aakp:MaturityScore
+    source:
+      tables: [maturity_scores]
+    internal_api: GET /api/v1/assessments/{assessment_id}/maturity/{workstream}
+    agent_access: internal_only
+    kg_mapping: instance_1to1
+    notes: Per-workstream maturity evaluation; aggregate view is Maturity Scorecard product
+
+  - id: workstream_question
+    name: Question (canonical)
+    classification: domain_information_object
+    medallion: silver
+    description: Global reusable assessment prompt — assessment-independent canonical record
+    source:
+      tables: [workstream_questions]
+    internal_api: POST/GET /api/v1/question-bank
+    ui: Question Management (Soru Yönetimi)
+    agent_access: internal_only
+    notes: >
+      Framework "Question" DIO. Published through Question Bank product (Gold).
+      Interview session copies (questions table) are runtime copies, not canonical.
+
+  - id: interview_qa_bundle
+    name: Interview Q&A (logical bundle)
+    classification: domain_information_object
+    medallion: silver
+    description: Question + Answer + Evaluation per interview — NOT a published product by default
+    composes: [question, answer, answer_evaluation]
+    agent_access: internal_only
+    promotion_criteria: >
+      Becomes published product only if external consumption, MCP resource,
+      OpenMetadata catalog entry and data contract are explicitly defined
+    is_data_product: false
+
+# ─── Published Data Products (Gold) ─────────────────────────────────────────
+
+published_data_products:
+  - id: question_bank
+    name: Question Bank
+    classification: published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    description: >
+      Workstream-scoped governed port for approved/active questions. Canonical Question
+      records live in workstream_questions; this product is the agent/UI consumption surface.
+    attributes:
+      reusable: true
+    source:
+      domain_objects: [workstream_question]
+    rest_api: GET /api/v1/question-bank?workstream={workstream}
+    mcp_resource: resource://question_bank/{workstream}
+    openmetadata: planned
+    agent_access: primary_port
+    notes: >
+      Single question row is NOT a product. Agents must use this port, not raw tables.
+      Assessment interviews copy from bank at session start.
+
+  - id: finding_library
+    name: Finding Library
+    classification: published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    description: Discoverable collection of findings with evidence lineage
+    source:
+      domain_objects: [finding, evidence]
+    rest_api: GET /api/v1/findings?task_id={task_id}
+    mcp_resource: resource://current_task_findings?task_id={task_id}
+    agent_access: primary_port
+    derived_ports:
+      - id: finding_semantic_search
+        classification: derived_index_port
+        rest_api: POST /api/v1/qdrant/search/findings
+        mcp_tool: get_similar_findings
+
+  - id: risk_register
+    name: Risk Register
+    classification: published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    source:
+      domain_objects: [risk, finding]
+    rest_api: GET /api/v1/risks?assessment_id={assessment_id}
+    agent_access: primary_port
+
+  - id: recommendation_catalog
+    name: Recommendation Catalog
+    classification: published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    source:
+      domain_objects: [recommendation, finding]
+    rest_api: GET /api/v1/recommendations?assessment_id={assessment_id}
+    agent_access: primary_port
+
+  - id: maturity_scorecard
+    name: Maturity Scorecard
+    classification: published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    description: All-workstream maturity aggregate for dashboards
+    source:
+      domain_objects: [maturity_score]
+    rest_api: GET /api/v1/orchestrator/{assessment_id}/maturity
+    agent_access: primary_port
+
+  - id: evidence_catalog
+    name: Evidence Catalog
+    classification: published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    source:
+      domain_objects: [evidence]
+    rest_api: GET /api/v1/evidences/{evidence_id}
+    agent_access: primary_port
+
+  - id: executive_summary
+    name: Executive Summary
+    classification: composite_published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    description: KPI dashboard + narrative executive summary text
+    source:
+      services: [orchestrator.executive_summary]
+      composes: [finding_library, maturity_scorecard, risk_register]
+    rest_api: GET /api/v1/orchestrator/{assessment_id}/executive-summary
+    mcp_resource: resource://executive_summary?assessment_id={assessment_id}
+    agent_access: primary_port
+
+  - id: assessment_results_view
+    name: Assessment Results View
+    classification: composite_published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    description: Primary composite read model for chat and agents
+    source:
+      services: [assessment_results_product.compose]
+      composes: [executive_summary, maturity_scorecard, finding_library, recommendation_catalog]
+    rest_api: GET /api/v1/assessments/{assessment_id}/data-products/assessment-results
+    mcp_resource: resource://assessment_results?assessment_id={assessment_id}
+    mcp_tool: get_assessment_results
+    agent_access: primary_port
+
+  - id: assessment_report
+    name: Assessment Report
+    classification: composite_published_data_product
+    medallion: gold
+    maturity_tier: L0_listed
+    owner: assessment_platform
+    description: Structured Report Studio content_json
+    source:
+      tables: [reports]
+      services: [report_content.compose]
+    rest_api: GET /api/v1/reports?assessment_id={assessment_id}
+    agent_access: primary_port
+
+# ─── Optional / future ──────────────────────────────────────────────────────
+
+optional_products:
+  - id: assessment_snapshot
+    name: Assessment Snapshot
+    classification: derived_snapshot
+    medallion: gold
+    description: Materialized export bundle (PDF/JSON) — derived, not source of truth
+    is_data_product: true
+    status: planned
+
+semantic_layers:
+  business:
+    layer: information
+    purpose: KPI rules, dashboard metrics, composite read model logic
+    applies_to: [published_data_products, composite_published_data_product]
+  ontological:
+    layer: knowledge
+    purpose: OWL/RDF instance mapping and reasoning
+    applies_to: [domain_information_object]
+    technologies: [fuseki, sparql, kg_writer, r2rml_planned]
+
+access_rules:
+  agents_read: published_data_products via REST/MCP primary ports only
+  agents_write: domain_information_objects via MCP tools (workflow path) with guardrails
+  internal_compose: product services may read PostgreSQL domain objects during compose
+  ui_crud: domain_information_objects via internal REST (interview workflow)

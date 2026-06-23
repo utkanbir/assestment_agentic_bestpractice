@@ -238,6 +238,43 @@ def search_documents(
         return []
 
 
+def upsert_training_chunks(
+    event_id: str,
+    workstream: str,
+    chunks: list[str],
+    mode: str = "text",
+) -> None:
+    from qdrant_client.models import PointStruct
+    client = _client()
+    points = []
+    for i, chunk in enumerate(chunks):
+        point_id = str(uuid.uuid5(uuid.UUID(event_id) if len(event_id) == 36 else uuid.uuid4(), f"t{i}"))
+        points.append(PointStruct(
+            id=point_id,
+            vector=_embed(chunk),
+            payload={
+                "event_id": event_id,
+                "workstream": workstream,
+                "chunk_index": i,
+                "mode": mode,
+                "text": chunk[:2000],
+            },
+        ))
+    if points:
+        client.upsert(collection_name="documents", points=points)
+
+
+def delete_training_chunks(event_id: str) -> None:
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    client = _client()
+    client.delete(
+        collection_name="documents",
+        points_selector=Filter(
+            must=[FieldCondition(key="event_id", match=MatchValue(value=event_id))]
+        ),
+    )
+
+
 # ── Collection info ────────────────────────────────────────────────────────────
 
 def collection_stats() -> dict[str, Any]:

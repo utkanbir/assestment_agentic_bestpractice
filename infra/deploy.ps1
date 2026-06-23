@@ -38,7 +38,7 @@ function Step-RBAC {
 }
 
 function Step-Data {
-    Write-Step "Deploying Data Layer (MinIO + Kafka) -> aakp-data"
+    Write-Step "Deploying Data Layer (MinIO + Kafka + Trino) -> aakp-data"
     Write-Info "MinIO (official chart)..."
     helm upgrade --install aakp-minio minio-official/minio `
         -n aakp-data `
@@ -46,11 +46,13 @@ function Step-Data {
         --wait --timeout 5m
     Write-Info "Kafka (official apache/kafka image)..."
     kubectl apply -f "$InfraDir\helm\data-layer\kafka-manifest.yaml"
+    Write-Info "Trino (query federation)..."
+    kubectl apply -f "$InfraDir\helm\data-layer\trino-manifest.yaml"
     Write-OK "Data layer deployed"
 }
 
 function Step-Information {
-    Write-Step "Deploying Information Layer (PostgreSQL + Qdrant) -> aakp-information"
+    Write-Step "Deploying Information Layer (PostgreSQL + Qdrant + OpenMetadata) -> aakp-information"
     Write-Info "PostgreSQL (official image)..."
     kubectl apply -f "$InfraDir\helm\information-layer\postgresql-manifest.yaml"
     Write-Info "Qdrant (official chart)..."
@@ -58,6 +60,8 @@ function Step-Information {
         -n aakp-information `
         -f "$InfraDir\helm\information-layer\qdrant-values.yaml" `
         --wait --timeout 5m
+    Write-Info "OpenMetadata (data catalog)..."
+    kubectl apply -f "$InfraDir\helm\information-layer\openmetadata-manifest.yaml"
     Write-OK "Information layer deployed"
 }
 

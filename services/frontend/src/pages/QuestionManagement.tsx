@@ -1,12 +1,14 @@
 // S10-FA-002 / S11-FA-003: Question Management — agent önerisi + soru bankası
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   listWorkstreamQuestions,
   createWorkstreamQuestion,
+  deleteWorkstreamQuestion,
   listQuestions,
   approveQuestion,
   suggestBankQuestions,
+  getLatestInterview,
   WorkstreamQuestion,
   Question,
   WORKSTREAMS,
@@ -265,9 +267,12 @@ function SuggestionCard({
 // ── Ana bileşen ──────────────────────────────────────────────────────────────
 
 export default function QuestionManagement() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const assessmentId = searchParams.get("assessment_id") ?? "";
-  const interviewId = searchParams.get("interview_id") ?? "";
+  const interviewIdParam = searchParams.get("interview_id") ?? "";
+  const [resolvedInterviewId, setResolvedInterviewId] = useState(interviewIdParam);
+  const [resolvingInterview, setResolvingInterview] = useState(false);
+  const interviewId = interviewIdParam || resolvedInterviewId;
 
   const [workstream, setWorkstream] = useState<string>("kubernetes");
   const [bankQuestions, setBankQuestions] = useState<WorkstreamQuestion[]>([]);
@@ -294,6 +299,26 @@ export default function QuestionManagement() {
   useEffect(() => {
     loadBankQuestions();
   }, [workstream]);
+
+  // S22-FA-003: auto-resolve latest interview from assessment_id
+  useEffect(() => {
+    if (interviewIdParam || !assessmentId) {
+      setResolvedInterviewId(interviewIdParam);
+      return;
+    }
+    setResolvingInterview(true);
+    getLatestInterview(assessmentId)
+      .then((latest) => {
+        setResolvedInterviewId(latest.interview_id);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("interview_id", latest.interview_id);
+          return next;
+        }, { replace: true });
+      })
+      .catch(() => setResolvedInterviewId(""))
+      .finally(() => setResolvingInterview(false));
+  }, [assessmentId, interviewIdParam, setSearchParams]);
 
   // ── Agent önerileri yükle ────────────────────────────────────────────────
   const loadSuggestions = () => {
@@ -365,9 +390,14 @@ export default function QuestionManagement() {
     setAgentSuggestedQuestions(prev => prev.map((q, i) => i === index ? { ...q, accepted: false } : q));
   };
 
-  // ── Sil (API henüz yok) ──────────────────────────────────────────────────
-  const handleDelete = (_id: string) => {
-    alert("Bu özellik yakında geliyor");
+  // ── Sil ──────────────────────────────────────────────────────────────────
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteWorkstreamQuestion(id);
+      loadBankQuestions();
+    } catch {
+      alert("Soru silinirken hata oluştu.");
+    }
   };
 
   // ── Onay/Red sonrası listeden kaldır ────────────────────────────────────
@@ -431,7 +461,7 @@ export default function QuestionManagement() {
             {WORKSTREAMS.find(w => w.id === workstream)?.label ?? workstream}
           </h1>
           <p style={{ color: "#64748b", fontSize: 12, margin: 0 }}>
-            Soru bankası ve agent önerileri
+            Global soru bankası (tüm assessment'lar)
             {assessmentId && <span style={{ color: "#60a5fa" }}> — {assessmentId.slice(0, 8)}…</span>}
           </p>
         </div>
@@ -730,7 +760,9 @@ export default function QuestionManagement() {
           </div>
 
           {/* interviewId yoksa bilgi mesajı */}
-          {!interviewId ? (
+          {resolvingInterview ? (
+            <p style={{ textAlign: "center", color: "#64748b", padding: "40px 0" }}>Interview aranıyor…</p>
+          ) : !interviewId ? (
             <div
               style={{
                 background: "#0f172a",
@@ -743,21 +775,10 @@ export default function QuestionManagement() {
             >
               <p style={{ fontSize: 32, marginBottom: 12 }}>💬</p>
               <p style={{ fontSize: 14, marginBottom: 6, color: "#94a3b8" }}>
-                Interview ID belirtilmedi
+                Bu assessment için interview bulunamadı
               </p>
               <p style={{ fontSize: 12 }}>
-                Agent önerilerini görmek için URL'e{" "}
-                <code
-                  style={{
-                    background: "#1e293b",
-                    padding: "1px 6px",
-                    borderRadius: 3,
-                    color: "#60a5fa",
-                  }}
-                >
-                  interview_id
-                </code>{" "}
-                parametresi ekleyin.
+                Önce Interview odasında bir görüşme başlatın.
               </p>
             </div>
           ) : suggestionsLoading ? (

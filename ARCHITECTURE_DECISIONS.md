@@ -202,15 +202,103 @@ assessment.task.status.changed   ← orchestrator bilgilenir
 
 #### Bileşenler
 
+```
+Information Layer
+├── Business Semantic Layer     ← KPI, maturity rules, dashboard/read model logic
+├── Domain Information Objects  ← Silver: workflow-aware structured domain entities
+├── Published Data Products     ← Gold: contract, lineage, discoverable consumption ports
+├── Data Contracts              ← OpenMetadata quality guarantees
+├── Metadata & Lineage          ← Interview → Evidence → Finding → Risk → Recommendation
+├── Vector Store                ← Qdrant embeddings (derived index ports)
+└── API Layer                   ← REST + MCP + Kafka
+```
+
 | Bileşen | Açıklama | Teknoloji |
 |---|---|---|
 | Business Semantic Layer | Assessment metrikleri, KPI'lar, maturity skorları — dashboard ve raporlar için | FastAPI views |
-| Data Products | Risk Register, Recommendation Catalog, Maturity Heatmap, Finding Library, Question Bank | PostgreSQL |
-| Data Contracts | Her data product'ın kalite garantisi — guardrail'e doğrudan bağlı | OpenMetadata |
+| Domain Information Objects | Assessment domain structured entities (Silver) — workflow, validation, human-in-the-loop | PostgreSQL |
+| Published Data Products | Contract'lı, lineage'lı, discoverable Gold ürünler — agent/UI tüketimi | PostgreSQL + FastAPI + MCP |
+| Data Contracts | Her published product'ın kalite garantisi — guardrail'e doğrudan bağlı | OpenMetadata |
 | Metadata & Lineage | Interview → Evidence → Finding → Risk → Recommendation izlenebilirliği | OpenMetadata |
 | Data Catalog & Marketplace | Cross-engagement knowledge reuse, assessment artifact discovery | OpenMetadata |
 | Vector Store | Assessment content embedding'leri — semantic search, RAG için | Qdrant |
 | API Layer | Üçlü arayüz (bkz. aşağıda) | FastAPI + MCP + Kafka |
+
+#### ADR: Domain Information Objects vs Published Data Products
+
+**Durum:** Onaylandı ✓ | **Tarih:** 2026-06-18
+
+**Karar:** Information Layer içindeki assessment domain varlıkları ikiye ayrılır:
+
+1. **Domain Information Objects** — sistemin structured, validated, workflow-aware domain nesneleri (Medallion: **Silver**)
+2. **Published Data Products** — contract'lı, lineage'lı, discoverable ve agent/UI/external consumer tarafından tüketilebilir **Gold** ürünleri
+
+**Gerekçe:**
+
+- Her tabloyu veya entity'yi data product olarak adlandırmak data product kavramını sulandırır.
+- Data product kavramı **ownership, contract, SLA, lineage, discoverability** ve **reusable consumption port** gerektirir.
+- Assessment domainindeki Answer, Evidence, Finding gibi nesneler önce **domain object**'tir.
+- Bu nesnelerden türetilen Finding Library, Risk Register, Assessment Results View gibi publish edilmiş read model'lar gerçek **data product**'tır.
+- Bu ayrım Data Mesh prensiplerine daha uygundur.
+- Agent erişimi daha kontrollü olur: agent raw tablo yerine **published product port**undan okur.
+- OpenMetadata catalog daha anlamlı kalır.
+- Knowledge Layer mapping öncelikle domain object instance'larına odaklanır (1:1 RDF); published product'lar catalog/compose seviyesinde temsil edilir.
+
+**Domain Information Objects (Silver):**
+
+| Nesne | Açıklama |
+|---|---|
+| Assessment | Engagement container — **data product değil** |
+| Task | Workstream scope container |
+| Interview | Interview oturumu |
+| **Question (canonical)** | Global soru bankası — `WorkstreamQuestion`, assessment'tan bağımsız |
+| Question (session copy) | Interview oturum kopyası — cevap/evidence zinciri; framework'te ayrı DIO değil |
+| Answer | Müşteri cevabı |
+| Evidence | Kanıt kaydı (bronze pointer + metadata) |
+| Finding | Yapılandırılmış bulgu |
+| Risk | Finding'den türeyen risk |
+| Recommendation | Finding'den türeyen öneri |
+| Consultant Comment | Danışman yorumu (answer üzerinde) |
+| Maturity Score | Workstream olgunluk değerlendirmesi |
+
+**Published Data Products (Gold):**
+
+| Ürün | Classification | Açıklama |
+|---|---|---|
+| Question Bank | `published_data_product` | Global bank aggregate — canonical `WorkstreamQuestion` DIO'lardan publish; agent primary port |
+| Finding Library | `published_data_product` | Keşfedilebilir bulgu koleksiyonu |
+| Risk Register | `published_data_product` | Risk koleksiyonu |
+| Recommendation Catalog | `published_data_product` | Öneri koleksiyonu |
+| Maturity Scorecard | `published_data_product` | Tüm workstream olgunluk aggregate |
+| Assessment Results View | `composite_published_data_product` | Chat/agent birincil composite read model |
+| Executive Summary | `composite_published_data_product` | KPI + narrative özet |
+| Assessment Report | `composite_published_data_product` | Report Studio `content_json` |
+| Evidence Catalog | `published_data_product` | Keşfedilebilir evidence metadata |
+
+**Önemli sınırlar:**
+
+- **Assessment** bir data product değildir; engagement container / domain root olarak kalır.
+- **Interview Q&A** default olarak published product değildir; session copy + `Answer`, `Evaluation` workflow içi Silver'dır. Canonical **Question** soru bankasındadır (`WorkstreamQuestion`). Dış tüketim + MCP resource + contract tanımlanırsa ayrı export product'a terfi edebilir.
+- **MCP Resources/Tools** birincil consumption port olarak **Published Data Products** için kullanılır.
+- **Domain Information Objects** erişimi internal service/API seviyesinde kalır; agent'lar normalde doğrudan bu seviyeye inmez (workflow write path hariç).
+- Product servisleri compose sırasında internal olarak PG okuyabilir; yasak olan agent-facing raw table erişimidir.
+
+**Product maturity tiers (hedef):**
+
+| Seviye | Gereksinim |
+|---|---|
+| L0 — Listed | Catalog'da isim + owner |
+| L1 — Contracted | Schema + freshness/completeness expectation |
+| L2 — Governed | SLA, quality checks, approval workflow |
+
+**Semantic Layer ilişkisi:**
+
+- Business Semantic Layer → Published Data Products ve dashboard/read model üretimi (Information Layer)
+- Ontological Semantic Layer → Knowledge Layer tabanı (OWL/RDF mapping, reasoner)
+- Domain Information Objects → Semantic Mapping ile 1:1 KG instance (`kg_writer` / R2RML)
+- Published Data Products → OpenMetadata catalog + REST/MCP port; KG'de opsiyonel aggregate metadata
+
+**Kaynak:** `knowledge/architecture/SEMANTIC_INTELLIGENCE_FRAMEWORK.md`, `knowledge/architecture/data_products_catalog.yaml`, `knowledge/architecture/DATA_PRODUCTS_SEMANTIC_LAYER_DISCUSSION.md`
 
 #### Karar: Vector Store Yerleşimi
 
@@ -312,8 +400,10 @@ Knowledge Layer
 **Gerekçe:** Ontoloji değişince sadece mapping güncellenir, Information Layer dokunulmaz. Bağımlılık doğru yönde akar.
 
 ```
-Akış:  Data Product → Semantic Mapping → RDF Triple → Knowledge Graph → Reasoner → Agent
+Akış:  Domain Object / Published Product → Semantic Mapping → RDF Triple → Knowledge Graph → Reasoner → Agent
 ```
+
+**Not:** KG mapping önceliği **Domain Information Objects** (1:1 instance) üzerindedir. Published Data Products catalog ve compose seviyesinde temsil edilir; her composite product'ın ayrı KG individual'ı şart değildir.
 
 #### Karar: AI Agent Orchestration Yerleşimi
 
@@ -957,6 +1047,7 @@ Interview → Question → Answer → Evidence → Finding → Risk → Recommen
 | Ontoloji v0.3 (OWL syntax) | Implementation aşamasında |
 | Deployment Mimarisi | Tamamlandı ✓ |
 | Backlog & Sprint planı | Tamamlandı ✓ — TASKS.md |
+| Domain Objects vs Published Products | Tamamlandı ✓ — §4.2 ADR |
 
 ---
 

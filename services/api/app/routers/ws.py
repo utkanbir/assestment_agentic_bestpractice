@@ -10,7 +10,14 @@ router = APIRouter(prefix="/ws", tags=["websocket"])
 class WSEventType(str, Enum):
     ANSWER_SUBMITTED = "answer.submitted"
     QUESTION_SUGGESTED = "question.suggested"
+    QUESTION_ASKED = "question.asked"
+    ANSWER_EVALUATED = "answer.evaluated"
+    SIMULATION_PROGRESS = "simulation.progress"
+    SIMULATION_STOPPED = "simulation.stopped"
+    SIMULATION_COMPLETED = "simulation.completed"
+    KG_UPDATED = "kg.updated"
     FINDING_DETECTED = "finding.detected"
+    LAYER_TOUCH = "layer.touch"
     ERROR = "error"
 
 

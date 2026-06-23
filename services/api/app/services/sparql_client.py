@@ -13,6 +13,7 @@ PREFIX org:  <https://aakp.ai/ontology/organization#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 PREFIX sh:   <http://www.w3.org/ns/shacl#>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
 """
 
 _DATA_NS = "https://aakp.ai/data"
@@ -49,8 +50,68 @@ def _assessment_uri(assessment_id: uuid.UUID) -> str:
     return _uri("assessment", assessment_id)
 
 
+def _question_uri(question_id: uuid.UUID) -> str:
+    return _uri("question", question_id)
+
+
+def _answer_uri(answer_id: uuid.UUID) -> str:
+    return _uri("answer", answer_id)
+
+
+def _evaluation_uri(evaluation_id: uuid.UUID) -> str:
+    return _uri("evaluation", evaluation_id)
+
+
+def _consultant_uri(consultant_id: uuid.UUID) -> str:
+    return _uri("consultant", consultant_id)
+
+
+def _training_uri(event_id: uuid.UUID) -> str:
+    return _uri("training", event_id)
+
+
+def _agent_knowledge_uri(event_id: uuid.UUID) -> str:
+    return _uri("agent-knowledge", event_id)
+
+
+def _workstream_agent_uri(workstream: str) -> str:
+    return f"{_DATA_NS}/agent/{workstream}"
+
+
 def _escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
+_WORKSTREAM_LABELS: dict[str, str] = {
+    "kubernetes": "Kubernetes Agent",
+    "cloud_strategy": "Cloud Strategy Agent",
+    "ingestion": "Data Ingestion Agent",
+    "teradata_dr": "Teradata DR Agent",
+    "lakehouse": "Lakehouse Agent",
+    "governance": "Data Governance Agent",
+    "data_product": "Data Product Agent",
+    "cdp": "CDP Agent",
+}
+
+
+def _workstream_agent_label(workstream: str) -> str:
+    return _WORKSTREAM_LABELS.get(workstream, workstream.replace("_", " ").title() + " Agent")
+
+
+def _training_label(mode: str, question: str, max_len: int = 100) -> str:
+    q = " ".join(question.split())
+    if len(q) > max_len:
+        q = q[: max_len - 1] + "…"
+    return f"[{mode}] {q}"
+
+
+def _knowledge_label(mode: str, content: str, filename: str | None = None, max_len: int = 100) -> str:
+    if filename:
+        return f"[{mode}] {filename}"
+    c = " ".join(content.split())
+    if len(c) > max_len:
+        c = c[: max_len - 1] + "…"
+    return f"[{mode}] {c}"
 
 
 class SPARQLClient:
@@ -71,6 +132,18 @@ class SPARQLClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def construct(self, sparql: str) -> str:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                self._query_url,
+                params={"query": _PREFIXES + sparql},
+                headers={"Accept": "text/turtle"},
+                auth=self._auth,
+                timeout=60,
+            )
+            resp.raise_for_status()
+            return resp.text
+
     async def update(self, sparql: str) -> None:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -84,14 +157,19 @@ class SPARQLClient:
     # ── Assessment / Task / Interview ─────────────────────────────────────────
 
     async def insert_assessment(self, assessment_id: uuid.UUID,
-                                 client_name: str, project_name: str) -> str:
+                                 client_name: str, project_name: str,
+                                 is_simulated: bool = False) -> str:
         uri = _assessment_uri(assessment_id)
+        mode = "simulated" if is_simulated else "live"
+        sim_val = "true" if is_simulated else "false"
         await self.update(f"""
 INSERT DATA {{
   GRAPH <https://aakp.ai/graph/assessment> {{
     <{uri}> a aakp:Assessment ;
              aakp:hasClientName  "{_escape(client_name)}" ;
              aakp:hasProjectName "{_escape(project_name)}" ;
+             aakp:assessmentMode "{mode}" ;
+             aakp:isSimulated    "{sim_val}"^^xsd:boolean ;
              aakp:pgId           "{assessment_id}" .
   }}
 }}
@@ -136,6 +214,142 @@ INSERT DATA {{
              aakp:intervieweeName   "{_escape(interviewee_name)}" ;
              aakp:pgId              "{interview_id}" .
     {role_triple}
+  }}
+}}
+""")
+        return uri
+
+    async def insert_question(self, question_id: uuid.UUID, interview_id: uuid.UUID, text: str, order: int = 0) -> str:
+        uri = _question_uri(question_id)
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Question ;
+             aakp:askedInInterview <{_interview_uri(interview_id)}> ;
+             aakp:text "{_escape(text)}" ;
+             aakp:questionOrder "{order}"^^xsd:integer ;
+             aakp:pgId "{question_id}" .
+    <{_interview_uri(interview_id)}> aakp:hasQuestion <{uri}> .
+  }}
+}}
+""")
+        return uri
+
+    async def insert_answer(
+        self,
+        answer_id: uuid.UUID,
+        question_id: uuid.UUID,
+        text: str,
+        consultant_comment: str | None = None,
+    ) -> str:
+        uri = _answer_uri(answer_id)
+        comment_triple = (
+            f'<{uri}> aakp:consultantComment "{_escape(consultant_comment)}" .'
+            if consultant_comment else ""
+        )
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Answer ;
+             aakp:answersQuestion <{_question_uri(question_id)}> ;
+             aakp:text "{_escape(text)}" ;
+             aakp:pgId "{answer_id}" .
+    <{_question_uri(question_id)}> aakp:hasAnswer <{uri}> .
+    {comment_triple}
+  }}
+}}
+""")
+        return uri
+
+    async def insert_consultant(
+        self,
+        consultant_id: uuid.UUID,
+        assessment_id: uuid.UUID,
+        first_name: str,
+        last_name: str,
+        role: str | None = None,
+        expertise: str | None = None,
+    ) -> str:
+        uri = _consultant_uri(consultant_id)
+        role_triple = f'<{uri}> aakp:consultantRole "{_escape(role)}" .' if role else ""
+        expertise_triple = f'<{uri}> aakp:consultantExpertise "{_escape(expertise)}" .' if expertise else ""
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Consultant ;
+             aakp:firstName "{_escape(first_name)}" ;
+             aakp:lastName "{_escape(last_name)}" ;
+             aakp:pgId "{consultant_id}" .
+    {role_triple}
+    {expertise_triple}
+    <{_assessment_uri(assessment_id)}> aakp:hasConsultant <{uri}> .
+  }}
+}}
+""")
+        return uri
+
+    async def link_consultant_to_answer(
+        self,
+        answer_id: uuid.UUID,
+        consultant_id: uuid.UUID,
+        consultant_comment: str | None = None,
+    ) -> None:
+        comment_triple = (
+            f'<{_answer_uri(answer_id)}> aakp:consultantComment "{_escape(consultant_comment)}" .'
+            if consultant_comment else ""
+        )
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{_answer_uri(answer_id)}> aakp:reviewedByConsultant <{_consultant_uri(consultant_id)}> .
+    {comment_triple}
+  }}
+}}
+""")
+
+    async def upsert_answer_evaluation(self, answer_id: uuid.UUID, text: str) -> str:
+        """Replace prior Evaluation triples for this answer (supports re-evaluate)."""
+        eval_id = uuid.uuid4()
+        answer_uri = _answer_uri(answer_id)
+        eval_uri = _evaluation_uri(eval_id)
+        await self.update(f"""
+DELETE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    ?ev ?p ?o .
+    <{answer_uri}> aakp:hasEvaluation ?ev .
+  }}
+}}
+INSERT {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{eval_uri}> a aakp:Evaluation ;
+                 rdfs:label "AI Evaluation" ;
+                 aakp:evaluationText "{_escape(text)}" ;
+                 aakp:pgId "{eval_id}" .
+    <{answer_uri}> aakp:hasEvaluation <{eval_uri}> .
+  }}
+}}
+WHERE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    OPTIONAL {{
+      ?ev a aakp:Evaluation .
+      <{answer_uri}> aakp:hasEvaluation ?ev .
+      ?ev ?p ?o .
+    }}
+  }}
+}}
+""")
+        return eval_uri
+
+    async def insert_evaluation(self, evaluation_id: uuid.UUID,
+                                 answer_id: uuid.UUID, text: str) -> str:
+        uri = _evaluation_uri(evaluation_id)
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{uri}> a aakp:Evaluation ;
+             aakp:evaluationText "{_escape(text)}" ;
+             aakp:pgId "{evaluation_id}" .
+    <{_answer_uri(answer_id)}> aakp:hasEvaluation <{uri}> .
   }}
 }}
 """)
@@ -213,6 +427,124 @@ WHERE {{
 }}
 """)
 
+    # ── Agent training (S24) ──────────────────────────────────────────────────
+
+    async def insert_training_interaction(
+        self,
+        event_id: uuid.UUID,
+        workstream: str,
+        mode: str,
+        question_text: str,
+        answer_text: str,
+        answer_author: str = "consultant",
+    ) -> str:
+        uri = _training_uri(event_id)
+        agent_uri = _workstream_agent_uri(workstream)
+        label = _training_label(mode, question_text)
+        agent_label = _workstream_agent_label(workstream)
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{agent_uri}> a aakp:Task ;
+                  aakp:hasWorkstream "{_escape(workstream)}" ;
+                  rdfs:label "{_escape(agent_label)}" .
+    <{uri}> a aakp:TrainingInteraction ;
+             rdfs:label "{_escape(label)}" ;
+             aakp:forWorkstream "{_escape(workstream)}" ;
+             aakp:trainingMode "{_escape(mode)}" ;
+             aakp:trainingQuestion "{_escape(question_text)}" ;
+             aakp:trainingAnswer "{_escape(answer_text)}" ;
+             aakp:answerAuthor "{_escape(answer_author)}" ;
+             aakp:pgId "{event_id}" .
+    <{agent_uri}> aakp:hasTrainingEvent <{uri}> .
+  }}
+}}
+""")
+        return uri
+
+    async def insert_training_concept_links(
+        self,
+        event_id: uuid.UUID,
+        concept_uris: list[str],
+        *,
+        knowledge_kind: str = "training",
+    ) -> None:
+        if not concept_uris:
+            return
+        ev_uri = (
+            _training_uri(event_id)
+            if knowledge_kind == "training"
+            else _agent_knowledge_uri(event_id)
+        )
+        triples = "\n    ".join(
+            f"<{ev_uri}> aakp:refersToConcept <{u}> ." for u in concept_uris
+        )
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    {triples}
+  }}
+}}
+""")
+
+    async def insert_agent_knowledge(
+        self,
+        event_id: uuid.UUID,
+        workstream: str,
+        content: str,
+        *,
+        knowledge_mode: str = "text",
+        source_doc_id: uuid.UUID | None = None,
+        source_filename: str | None = None,
+    ) -> str:
+        uri = _agent_knowledge_uri(event_id)
+        agent_uri = _workstream_agent_uri(workstream)
+        label = _knowledge_label(knowledge_mode, content, source_filename)
+        agent_label = _workstream_agent_label(workstream)
+        extra = f'aakp:knowledgeMode "{_escape(knowledge_mode)}" ;\n             '
+        if source_doc_id:
+            extra += f'aakp:sourceDocId "{source_doc_id}" ;\n             '
+        if source_filename:
+            extra += f'aakp:sourceFilename "{_escape(source_filename)}" ;\n             '
+        await self.update(f"""
+INSERT DATA {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    <{agent_uri}> a aakp:Task ;
+                  aakp:hasWorkstream "{_escape(workstream)}" ;
+                  rdfs:label "{_escape(agent_label)}" .
+    <{uri}> a aakp:AgentKnowledge ;
+             rdfs:label "{_escape(label)}" ;
+             aakp:forWorkstream "{_escape(workstream)}" ;
+             {extra}aakp:knowledgeContent "{_escape(content[:2000])}" ;
+             aakp:pgId "{event_id}" .
+    <{agent_uri}> aakp:hasAgentKnowledge <{uri}> .
+  }}
+}}
+""")
+        return uri
+
+    async def delete_learning_by_pg_id(self, event_id: uuid.UUID) -> None:
+        """Remove training/knowledge triples and agent links for a learning event."""
+        pg = str(event_id)
+        await self.update(f"""
+DELETE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    ?s ?p ?o .
+    ?agent ?link ?s .
+  }}
+}}
+WHERE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    ?s aakp:pgId "{pg}" .
+    OPTIONAL {{ ?s ?p ?o }}
+    OPTIONAL {{
+      ?agent ?link ?s .
+      FILTER(?link IN (aakp:hasTrainingEvent, aakp:hasAgentKnowledge))
+    }}
+  }}
+}}
+""")
+
     # ── Risk (S2-AA-001) ─────────────────────────────────────────────────────
 
     async def insert_risk(self, risk_id: uuid.UUID, finding_id: uuid.UUID,
@@ -259,6 +591,140 @@ WHERE {{
 ORDER BY DESC(?confidence)
 """)
         return result.get("results", {}).get("bindings", [])
+
+    async def get_assessment_graph(self, assessment_id: uuid.UUID) -> dict:
+        assessment_uri = _assessment_uri(assessment_id)
+        result = await self.query(f"""
+SELECT DISTINCT ?s ?sType ?p ?o ?oType
+WHERE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    {{
+      ?s ?p ?o .
+      ?s a ?sType .
+      FILTER(?s = <{assessment_uri}>)
+    }} UNION {{
+      ?s ?p ?o .
+      ?s a ?sType .
+      ?s aakp:belongsToAssessment <{assessment_uri}> .
+    }} UNION {{
+      ?task aakp:belongsToAssessment <{assessment_uri}> .
+      ?s ?p ?o .
+      ?s a ?sType .
+      ?s aakp:conductedForTask ?task .
+    }} UNION {{
+      ?task aakp:belongsToAssessment <{assessment_uri}> .
+      ?interview aakp:conductedForTask ?task .
+      ?s ?p ?o .
+      ?s a ?sType .
+      ?s aakp:askedInInterview ?interview .
+    }} UNION {{
+      ?task aakp:belongsToAssessment <{assessment_uri}> .
+      ?interview aakp:conductedForTask ?task .
+      ?question aakp:askedInInterview ?interview .
+      ?s ?p ?o .
+      ?s a ?sType .
+      ?s aakp:answersQuestion ?question .
+    }}
+    OPTIONAL {{ ?o a ?oType }}
+  }}
+}}
+LIMIT 4000
+""")
+        return result
+
+    async def get_ontology_context(self, workstream: str, limit: int = 6) -> list[dict]:
+        result = await self.query(f"""
+SELECT ?class ?label ?comment
+WHERE {{
+  GRAPH <https://aakp.ai/graph/ontology> {{
+    ?class a owl:Class .
+    OPTIONAL {{ ?class rdfs:label ?label }}
+    OPTIONAL {{ ?class rdfs:comment ?comment }}
+    FILTER(
+      CONTAINS(LCASE(STR(?class)), LCASE("{_escape(workstream)}"))
+      || CONTAINS(LCASE(COALESCE(STR(?label), "")), LCASE("{_escape(workstream)}"))
+      || CONTAINS(LCASE(COALESCE(STR(?comment), "")), LCASE("{_escape(workstream)}"))
+    )
+  }}
+}}
+LIMIT {limit}
+""")
+        return result.get("results", {}).get("bindings", [])
+
+    async def get_agent_training_context(self, workstream: str, limit: int = 6) -> list[dict]:
+        """Instance-level agent learning from the assessment knowledge graph."""
+        agent_uri = _workstream_agent_uri(workstream)
+        result = await self.query(f"""
+SELECT ?ev ?type ?question ?answer ?content ?author ?mode ?filename ?concept ?conceptLabel
+WHERE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{
+    {{
+      <{agent_uri}> aakp:hasTrainingEvent ?ev .
+      ?ev a aakp:TrainingInteraction .
+      BIND("TrainingInteraction" AS ?type)
+      OPTIONAL {{ ?ev aakp:trainingQuestion ?question }}
+      OPTIONAL {{ ?ev aakp:trainingAnswer ?answer }}
+      OPTIONAL {{ ?ev aakp:answerAuthor ?author }}
+      OPTIONAL {{ ?ev aakp:trainingMode ?mode }}
+      OPTIONAL {{
+        ?ev aakp:refersToConcept ?concept .
+        OPTIONAL {{ ?concept arch:hasName ?conceptLabel }}
+      }}
+    }}
+    UNION
+    {{
+      <{agent_uri}> aakp:hasAgentKnowledge ?ev .
+      ?ev a aakp:AgentKnowledge .
+      BIND("AgentKnowledge" AS ?type)
+      OPTIONAL {{ ?ev aakp:knowledgeContent ?content }}
+      OPTIONAL {{ ?ev aakp:knowledgeMode ?mode }}
+      OPTIONAL {{ ?ev aakp:sourceFilename ?filename }}
+      OPTIONAL {{
+        ?ev aakp:refersToConcept ?concept .
+        OPTIONAL {{ ?concept arch:hasName ?conceptLabel }}
+      }}
+    }}
+  }}
+}}
+LIMIT {limit * 4}
+""")
+        return result.get("results", {}).get("bindings", [])
+
+    @staticmethod
+    def format_agent_training_context(bindings: list[dict]) -> str:
+        if not bindings:
+            return ""
+        lines = ["Agent öğrenme kayıtları (Knowledge Graph):"]
+        seen: set[str] = set()
+        concepts_by_ev: dict[str, list[str]] = {}
+
+        for row in bindings:
+            ev = (row.get("ev") or {}).get("value", "")
+            cl = (row.get("conceptLabel") or {}).get("value", "")
+            if ev and cl and cl not in concepts_by_ev.get(ev, []):
+                concepts_by_ev.setdefault(ev, []).append(cl)
+
+        for row in bindings:
+            ev = (row.get("ev") or {}).get("value", "")
+            if not ev or ev in seen:
+                continue
+            seen.add(ev)
+            kind = (row.get("type") or {}).get("value", "")
+            concept_suffix = ""
+            if concepts_by_ev.get(ev):
+                concept_suffix = f" [kavram: {', '.join(concepts_by_ev[ev])}]"
+            if kind == "TrainingInteraction":
+                q = (row.get("question") or {}).get("value", "")
+                a = (row.get("answer") or {}).get("value", "")
+                author = (row.get("author") or {}).get("value", "consultant")
+                lines.append(f"- [AAHA/{author}] S: {q[:200]} → C: {a[:300]}{concept_suffix}")
+            else:
+                content = (row.get("content") or {}).get("value", "")
+                mode = (row.get("mode") or {}).get("value", "text")
+                filename = (row.get("filename") or {}).get("value", "")
+                label = filename or content[:120]
+                lines.append(f"- [{mode}] {label}{concept_suffix}")
+        return "\n".join(lines)
 
     async def get_gap_confidence(self) -> list[dict]:
         result = await self.query("""
@@ -440,6 +906,83 @@ ORDER BY ?capability ?inferredConfidence DESC(?findingConfidence)
         return result.get("results", {}).get("bindings", [])
 
     # ── Agent Registry (S3-AA-008) ───────────────────────────────────────────
+
+    async def backfill_instance_labels(self) -> dict:
+        """Add rdfs:label on KG individuals so Protege shows readable names."""
+        try:
+            await self.update("""
+DELETE {
+  GRAPH <https://aakp.ai/graph/assessment> { ?s rdfs:label ?old }
+}
+INSERT {
+  GRAPH <https://aakp.ai/graph/assessment> { ?s rdfs:label ?label }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?s a aakp:TrainingInteraction ;
+       aakp:trainingQuestion ?q ;
+       aakp:trainingMode ?m .
+    BIND(CONCAT("[", ?m, "] ", SUBSTR(?q, 1, 100)) AS ?label)
+    OPTIONAL { ?s rdfs:label ?old }
+  }
+}
+""")
+            await self.update("""
+DELETE {
+  GRAPH <https://aakp.ai/graph/assessment> { ?s rdfs:label ?old }
+}
+INSERT {
+  GRAPH <https://aakp.ai/graph/assessment> { ?s rdfs:label ?label }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/assessment> {
+    ?s a aakp:AgentKnowledge .
+    OPTIONAL { ?s aakp:knowledgeMode ?mode }
+    OPTIONAL { ?s aakp:sourceFilename ?fn }
+    OPTIONAL { ?s aakp:knowledgeContent ?content }
+    BIND(
+      IF(
+        BOUND(?fn),
+        CONCAT("[", COALESCE(?mode, "text"), "] ", ?fn),
+        CONCAT("[", COALESCE(?mode, "text"), "] ", SUBSTR(?content, 1, 100))
+      ) AS ?label
+    )
+    OPTIONAL { ?s rdfs:label ?old }
+  }
+}
+""")
+            await self.update("""
+DELETE {
+  GRAPH <https://aakp.ai/graph/agents> { ?a rdfs:label ?old }
+}
+INSERT {
+  GRAPH <https://aakp.ai/graph/agents> { ?a rdfs:label ?name }
+}
+WHERE {
+  GRAPH <https://aakp.ai/graph/agents> {
+    ?a a aakp:AssessmentAgent ; aakp:hasDisplayName ?name .
+    OPTIONAL { ?a rdfs:label ?old }
+  }
+}
+""")
+            for ws, label in _WORKSTREAM_LABELS.items():
+                uri = _workstream_agent_uri(ws)
+                await self.update(f"""
+DELETE {{
+  GRAPH <https://aakp.ai/graph/assessment> {{ <{uri}> rdfs:label ?old }}
+}}
+INSERT {{
+  GRAPH <https://aakp.ai/graph/assessment> {{ <{uri}> rdfs:label "{_escape(label)}" }}
+}}
+WHERE {{
+  OPTIONAL {{
+    GRAPH <https://aakp.ai/graph/assessment> {{ <{uri}> rdfs:label ?old }}
+  }}
+}}
+""")
+            return {"status": "ok"}
+        except Exception as exc:
+            return {"status": "error", "detail": str(exc)}
 
     async def register_all_agents(self) -> dict:
         """Load agent registry SPARQL file and upsert all 8 agents into

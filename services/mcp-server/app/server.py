@@ -37,6 +37,24 @@ async def list_resources() -> list[Resource]:
             ),
             mimeType="application/json",
         ),
+        Resource(
+            uri="resource://assessment_results",
+            name="Assessment Results View (Data Product)",
+            description=(
+                "Composite Gold data product: KPI, workstream özeti, top bulgular. "
+                "URI: resource://assessment_results?assessment_id=<uuid>"
+            ),
+            mimeType="application/json",
+        ),
+        Resource(
+            uri="resource://executive_summary",
+            name="Executive Summary (Data Product)",
+            description=(
+                "Executive summary KPI dashboard. "
+                "URI: resource://executive_summary?assessment_id=<uuid>"
+            ),
+            mimeType="application/json",
+        ),
     ]
 
 
@@ -72,12 +90,48 @@ async def read_resource(uri: str) -> str:
                 return resp.text
             return json.dumps({"error": f"Qdrant search failed: {resp.status_code}"})
 
+    if uri.startswith("resource://assessment_results"):
+        from urllib.parse import parse_qs, urlparse
+        parsed = urlparse(uri.replace("resource://", "http://dummy/"))
+        qs = parse_qs(parsed.query)
+        assessment_id = qs.get("assessment_id", [""])[0]
+        if not assessment_id:
+            return json.dumps({"error": "assessment_id required: resource://assessment_results?assessment_id=<uuid>"})
+        async with httpx.AsyncClient(base_url=settings.api_base_url) as client:
+            resp = await client.get(f"/api/v1/assessments/{assessment_id}/data-products/assessment-results")
+            return resp.text
+
+    if uri.startswith("resource://executive_summary"):
+        from urllib.parse import parse_qs, urlparse
+        parsed = urlparse(uri.replace("resource://", "http://dummy/"))
+        qs = parse_qs(parsed.query)
+        assessment_id = qs.get("assessment_id", [""])[0]
+        if not assessment_id:
+            return json.dumps({"error": "assessment_id required: resource://executive_summary?assessment_id=<uuid>"})
+        async with httpx.AsyncClient(base_url=settings.api_base_url) as client:
+            resp = await client.get(f"/api/v1/orchestrator/{assessment_id}/executive-summary")
+            return resp.text
+
     return json.dumps({"error": f"Unknown resource: {uri}"})
 
 
 @server.list_tools()
 async def list_tools() -> list[Tool]:
     return [
+        Tool(
+            name="get_assessment_results",
+            description=(
+                "Assessment Results View data product: KPI, workstream tablosu, top bulgular ve öneriler. "
+                "Chat ve agent'lar assessment sonuçlarını bu tool ile okumalı — ham SQL değil."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "assessment_id": {"type": "string", "description": "Assessment UUID"},
+                },
+                "required": ["assessment_id"],
+            },
+        ),
         Tool(
             name="create_finding",
             description="Bir interview'dan tespit edilen bulguyu kaydet. Evidence zorunludur (guardrail).",
@@ -214,6 +268,15 @@ async def list_tools() -> list[Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     async with httpx.AsyncClient(base_url=settings.api_base_url) as client:
+
+        if name == "get_assessment_results":
+            assessment_id = arguments["assessment_id"]
+            resp = await client.get(
+                f"/api/v1/assessments/{assessment_id}/data-products/assessment-results"
+            )
+            if resp.status_code == 200:
+                return [TextContent(type="text", text=resp.text)]
+            return [TextContent(type="text", text=json.dumps({"error": f"API error: {resp.status_code}"}))]
 
         if name == "add_evidence":
             resp = await client.post("/api/v1/evidences", json=arguments)

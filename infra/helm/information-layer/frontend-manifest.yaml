@@ -1,4 +1,4 @@
-# AAKP Frontend (React + nginx) — aakp-information namespace
+﻿# AAKP Frontend (React + nginx) — aakp-information namespace
 # S1-FA-007: K8s deployment
 
 ---
@@ -24,7 +24,7 @@ spec:
       serviceAccountName: aakp-sa
       containers:
         - name: frontend
-          image: aakp/frontend:sprint14
+          image: aakp/frontend:dev-nav-trim  # S29 multi-consultant interview comments
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

@@ -1,10 +1,6 @@
 # OpenMetadata — S3-BA-001
 # Deployed in aakp-information namespace alongside API, Qdrant
-# Dependencies: PostgreSQL (shared aakp DB), Elasticsearch (bundled or external)
-#
-# This manifest deploys OpenMetadata server only.
-# MySQL/Elasticsearch bundled dependencies are managed by the Helm chart.
-# For Docker Desktop dev: simplified single-pod deployment.
+# Dependencies: PostgreSQL (shared aakp DB), Elasticsearch (aakp-elasticsearch)
 
 ---
 apiVersion: v1
@@ -15,21 +11,37 @@ metadata:
   labels:
     app.kubernetes.io/part-of: aakp
 data:
-  # OpenMetadata server config
   OM_SERVER_HOST: "0.0.0.0"
   OM_SERVER_PORT: "8585"
-  # Database (shared PostgreSQL)
+  # PostgreSQL (OM metadata DB — separate from aakp app DB name)
   DB_HOST: "aakp-postgresql.aakp-information.svc.cluster.local"
   DB_PORT: "5432"
   DB_USER: "aakp"
   DB_SCHEME: "postgresql"
+  DB_DRIVER_CLASS: "org.postgresql.Driver"
+  DB_PARAMS: "useSSL=false"
   OM_DATABASE: "openmetadata_db"
-  # Elasticsearch (bundled)
-  ELASTICSEARCH_HOST: "localhost"
+  # Elasticsearch (required for OM search index)
+  ELASTICSEARCH_HOST: "aakp-elasticsearch.aakp-information.svc.cluster.local"
   ELASTICSEARCH_PORT: "9200"
-  # Auth: disable for dev
+  ELASTICSEARCH_SCHEME: "http"
+  SEARCH_TYPE: "opensearch"
+  # Auth: basic dev login (admin@open-metadata.org / admin)
   AUTHENTICATION_PROVIDER: "basic"
-  AUTHORIZER_CLASS_NAME: "org.openmetadata.service.security.NoopAuthorizer"
+  AUTHORIZER_CLASS_NAME: "org.openmetadata.service.security.DefaultAuthorizer"
+  AUTHORIZER_ADMIN_PRINCIPALS: "[admin]"
+  AUTHORIZER_INGESTION_PRINCIPALS: "[ingestion-bot]"
+  AUTHORIZER_PRINCIPAL_DOMAIN: "open-metadata.org"
+  # Pipeline service client → Airflow ingestion (Test Connection + UI ingestion)
+  PIPELINE_SERVICE_CLIENT_ENABLED: "true"
+  PIPELINE_SERVICE_CLIENT_CLASS_NAME: "org.openmetadata.service.clients.pipeline.airflow.AirflowRESTClient"
+  PIPELINE_SERVICE_CLIENT_ENDPOINT: "http://aakp-openmetadata-ingestion.aakp-information.svc.cluster.local:8080"
+  PIPELINE_SERVICE_CLIENT_VERIFY_SSL: "no-ssl"
+  PIPELINE_SERVICE_CLIENT_HEALTH_CHECK_INTERVAL: "30"
+  SERVER_HOST_API_URL: "http://aakp-openmetadata.aakp-information.svc.cluster.local:8585/api"
+  AIRFLOW_USERNAME: "admin"
+  AIRFLOW_PASSWORD: "admin"
+  AIRFLOW_TIMEOUT: "30"
 
 ---
 apiVersion: v1
@@ -41,7 +53,77 @@ metadata:
     app.kubernetes.io/part-of: aakp
 type: Opaque
 stringData:
-  DB_PASSWORD: "aakp-pg-secret"
+  DB_USER_PASSWORD: "aakp-pg-secret"
+  # Shared with Airflow in ingestion pod (dev default from OM quickstart)
+  FERNET_KEY: "jJ/9sz0g0OHxsfxOoSfdFdmk3ysNmPRnH3TUAbz3IHA="
+
+---
+# Single-node Elasticsearch for OpenMetadata search index (dev)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-elasticsearch
+  namespace: aakp-information
+  labels:
+    app: aakp-elasticsearch
+    app.kubernetes.io/part-of: aakp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-elasticsearch
+  template:
+    metadata:
+      labels:
+        app: aakp-elasticsearch
+        app.kubernetes.io/part-of: aakp
+    spec:
+      containers:
+        - name: elasticsearch
+          image: opensearchproject/opensearch:2.11.0
+          ports:
+            - containerPort: 9200
+              name: http
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: DISABLE_INSTALL_DEMO_CONFIG
+              value: "true"
+            - name: DISABLE_SECURITY_PLUGIN
+              value: "true"
+            - name: OPENSEARCH_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?wait_for_status=yellow&timeout=5s
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: 768Mi
+              cpu: 250m
+            limits:
+              memory: 1536Mi
+              cpu: 1000m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-elasticsearch
+  namespace: aakp-information
+  labels:
+    app: aakp-elasticsearch
+    app.kubernetes.io/part-of: aakp
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9200
+      targetPort: 9200
+      name: http
+  selector:
+    app: aakp-elasticsearch
 
 ---
 apiVersion: apps/v1
@@ -65,10 +147,49 @@ spec:
     spec:
       serviceAccountName: aakp-sa
       initContainers:
-        # Wait for PostgreSQL to be ready
         - name: wait-for-postgres
           image: busybox:1.36
-          command: ["sh", "-c", "until nc -z aakp-postgresql.aakp-information.svc.cluster.local 5432; do echo waiting for postgres; sleep 3; done"]
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z aakp-postgresql.aakp-information.svc.cluster.local 5432; do
+                echo waiting for postgres
+                sleep 3
+              done
+        - name: wait-for-elasticsearch
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z aakp-elasticsearch.aakp-information.svc.cluster.local 9200; do
+                echo waiting for elasticsearch
+                sleep 5
+              done
+        # Creates DATABASE_CHANGE_LOG + openmetadata_settings (required before server start)
+        - name: run-migrations
+          image: openmetadata/server:1.3.1
+          workingDir: /opt/openmetadata
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              echo "=== OpenMetadata migrate start ==="
+              ./bootstrap/openmetadata-ops.sh migrate
+              echo "=== OpenMetadata migrate done ==="
+          envFrom:
+            - configMapRef:
+                name: aakp-openmetadata-config
+            - secretRef:
+                name: aakp-openmetadata-secret
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 500m
+            limits:
+              memory: 2Gi
+              cpu: 1000m
       containers:
         - name: openmetadata
           image: openmetadata/server:1.3.1
@@ -82,20 +203,30 @@ spec:
                 name: aakp-openmetadata-config
             - secretRef:
                 name: aakp-openmetadata-secret
+          # OM 1.3.1 has no /api/v1/health-check (404→500); version endpoint is stable
+          startupProbe:
+            httpGet:
+              path: /api/v1/system/version
+              port: 8585
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
-              path: /api/v1/health-check
+              path: /api/v1/system/version
               port: 8585
-            initialDelaySeconds: 120
+            initialDelaySeconds: 10
             periodSeconds: 15
-            failureThreshold: 10
+            failureThreshold: 6
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
-              path: /api/v1/health-check
+              path: /api/v1/system/version
               port: 8585
-            initialDelaySeconds: 180
+            initialDelaySeconds: 0
             periodSeconds: 30
             failureThreshold: 5
+            timeoutSeconds: 5
           resources:
             requests:
               memory: 1Gi
@@ -126,7 +257,148 @@ spec:
     app: aakp-openmetadata
 
 ---
-# Job: Create OpenMetadata database in PostgreSQL (runs once)
+# OpenMetadata Ingestion (Airflow) — required for Test Connection + UI metadata pipelines
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-openmetadata-ingestion
+  namespace: aakp-information
+  labels:
+    app: aakp-openmetadata-ingestion
+    app.kubernetes.io/part-of: aakp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-openmetadata-ingestion
+  template:
+    metadata:
+      labels:
+        app: aakp-openmetadata-ingestion
+        app.kubernetes.io/part-of: aakp
+    spec:
+      serviceAccountName: aakp-sa
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z aakp-postgresql.aakp-information.svc.cluster.local 5432; do
+                echo waiting for postgres
+                sleep 3
+              done
+        - name: ensure-airflow-db
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              PGPASSWORD=aakp-pg-secret psql \
+                -h aakp-postgresql.aakp-information.svc.cluster.local \
+                -U aakp -d postgres \
+                -c "CREATE DATABASE airflow_db;" 2>/dev/null || true
+              echo airflow_db ready
+        - name: wait-for-openmetadata
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until wget -qO- http://aakp-openmetadata.aakp-information.svc.cluster.local:8585/api/v1/system/version >/dev/null 2>&1; do
+                echo waiting for openmetadata api
+                sleep 5
+              done
+      containers:
+        - name: ingestion
+          image: openmetadata/ingestion:1.3.1
+          command: ["/bin/bash", "/opt/airflow/ingestion_dependency.sh"]
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: AIRFLOW__API__AUTH_BACKENDS
+              value: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: LocalExecutor
+            - name: AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS
+              value: "/opt/airflow/dag_generated_configs"
+            - name: DB_HOST
+              value: "aakp-postgresql.aakp-information.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: AIRFLOW_DB
+              value: "airflow_db"
+            - name: DB_SCHEME
+              value: "postgresql+psycopg2"
+            - name: DB_USER
+              value: "aakp"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aakp-openmetadata-secret
+                  key: DB_USER_PASSWORD
+            - name: FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aakp-openmetadata-secret
+                  key: FERNET_KEY
+          volumeMounts:
+            - name: dag-generated-configs
+              mountPath: /opt/airflow/dag_generated_configs
+            - name: airflow-dags
+              mountPath: /opt/airflow/dags
+            - name: airflow-tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 60
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 8
+            timeoutSeconds: 5
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 500m
+            limits:
+              memory: 2Gi
+              cpu: 1500m
+      volumes:
+        - name: dag-generated-configs
+          emptyDir: {}
+        - name: airflow-dags
+          emptyDir: {}
+        - name: airflow-tmp
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-openmetadata-ingestion
+  namespace: aakp-information
+  labels:
+    app: aakp-openmetadata-ingestion
+    app.kubernetes.io/part-of: aakp
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: aakp-openmetadata-ingestion
+
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -149,5 +421,10 @@ spec:
                 -h aakp-postgresql.aakp-information.svc.cluster.local \
                 -U aakp \
                 -c "CREATE DATABASE openmetadata_db;" 2>/dev/null || true
-              echo "OpenMetadata DB ready"
+              PGPASSWORD=aakp-pg-secret psql \
+                -h aakp-postgresql.aakp-information.svc.cluster.local \
+                -U aakp \
+                -c "CREATE DATABASE airflow_db;" 2>/dev/null || true
+              echo "OpenMetadata + Airflow DBs ready"
   backoffLimit: 5
+  ttlSecondsAfterFinished: 86400

@@ -116,7 +116,7 @@ jobs:
 
       - name: Pytest (postgres + API only; skip Fuseki/Kong/K8s)
         run: |
-          python -m pytest tests/test_02_api.py tests/test_06_sprint8.py tests/test_07_sprint9.py tests/test_08_sprint10.py tests/test_09_sprint11.py -v \
+          python -m pytest tests/test_02_api.py tests/test_06_sprint8.py tests/test_07_sprint9.py tests/test_08_sprint10.py tests/test_09_sprint11.py tests/test_10_sprint15.py tests/test_11_sprint16.py tests/test_12_sprint17.py tests/test_13_sprint18.py tests/test_14_sprint19.py tests/test_15_sprint20.py tests/test_16_sprint21.py tests/test_17_sprint22.py tests/test_18_sprint23.py tests/test_19_sprint24.py tests/test_20_sprint25.py tests/test_21_sprint26.py tests/test_22_sprint27.py tests/test_23_sprint28.py -v \
             -k "not knowledge_agents and not shacl and not kg_has_triples and not agent_registry"
 
   playwright-e2e:

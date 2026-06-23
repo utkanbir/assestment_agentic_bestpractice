@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.schemas.architecture import LayerTouchOut
+
 from app.models.assessment import InterviewStatus
 
 
@@ -48,6 +50,7 @@ class QuestionOut(BaseModel):
     agent_suggested: bool
     approval_status: str
     created_at: datetime
+    layer_trace: list[LayerTouchOut] = []
 
 
 class QuestionApprovalUpdate(BaseModel):
@@ -62,6 +65,43 @@ class AnswerCreate(BaseModel):
     question_id: uuid.UUID
     text: str
     raw_transcript: str | None = None
+    consultant_id: uuid.UUID | None = None
+    consultant_comment: str | None = None
+
+
+class AnswerUpdate(BaseModel):
+    consultant_id: uuid.UUID | None = None
+    consultant_comment: str | None = None
+
+
+class AnswerConsultantReviewIn(BaseModel):
+    consultant_comment: str | None = None
+
+
+class AnswerConsultantReviewOut(BaseModel):
+    consistent: bool
+    feedback: str
+
+
+class AnswerConsultantCommentCreate(BaseModel):
+    consultant_id: uuid.UUID
+    comment: str | None = None
+
+
+class AnswerConsultantCommentUpdate(BaseModel):
+    consultant_id: uuid.UUID | None = None
+    comment: str | None = None
+
+
+class AnswerConsultantCommentOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    answer_id: uuid.UUID
+    consultant_id: uuid.UUID
+    comment: str | None = None
+    consultant_review_feedback: str | None = None
+    created_at: datetime
 
 
 class AnswerOut(BaseModel):
@@ -72,9 +112,17 @@ class AnswerOut(BaseModel):
     text: str
     raw_transcript: str | None
     evaluation: str | None
+    consultant_id: uuid.UUID | None = None
+    consultant_comment: str | None = None
+    consultant_review_feedback: str | None = None
+    consultant_comments: list[AnswerConsultantCommentOut] = []
     created_at: datetime
+    layer_trace: list[LayerTouchOut] = []
+    transaction_id: uuid.UUID | None = None
 
 
 class EvaluateOut(BaseModel):
     answer_id: uuid.UUID
     evaluation: str
+    layer_trace: list[LayerTouchOut] = []
+    transaction_id: uuid.UUID | None = None

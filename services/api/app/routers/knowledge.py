@@ -1,7 +1,10 @@
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
+from rdflib import RDF, RDFS, OWL, URIRef
 
 from app.services.sparql_client import sparql_client
 
@@ -126,3 +129,126 @@ async def register_agents():
         return await sparql_client.register_all_agents()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Fuseki error: {e}")
+
+
+def _ontology_dir() -> Path:
+    bundled = Path(__file__).resolve().parent.parent / "data" / "ontology"
+    if bundled.is_dir():
+        return bundled
+    for ancestor in Path(__file__).resolve().parents:
+        candidate = ancestor / "knowledge" / "ontology"
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError("knowledge/ontology directory not found")
+
+
+@router.get("/ontology/schema")
+async def ontology_schema():
+    try:
+        from rdflib import Graph
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=500, detail=f"rdflib not available: {exc}")
+
+    graph = Graph()
+    sources: list[str] = []
+    for ttl in sorted(_ontology_dir().glob("*.ttl")):
+        if ttl.name.endswith("_instances.ttl"):
+            continue
+        try:
+            graph.parse(ttl.as_posix(), format="turtle")
+            sources.append(ttl.name)
+        except Exception:
+            continue
+
+    classes = []
+    properties = []
+
+    for cls in set(graph.subjects(RDF.type, OWL.Class)):
+        classes.append(
+            {
+                "id": str(cls),
+                "label": str(graph.value(cls, RDFS.label) or cls.split("#")[-1]),
+                "comment": str(graph.value(cls, RDFS.comment) or ""),
+                "parents": [str(parent) for parent in graph.objects(cls, RDFS.subClassOf)],
+            }
+        )
+
+    for prop_type in (OWL.ObjectProperty, OWL.DatatypeProperty):
+        for prop in set(graph.subjects(RDF.type, prop_type)):
+            properties.append(
+                {
+                    "id": str(prop),
+                    "label": str(graph.value(prop, RDFS.label) or str(prop).split("#")[-1]),
+                    "comment": str(graph.value(prop, RDFS.comment) or ""),
+                    "kind": "object" if prop_type == OWL.ObjectProperty else "datatype",
+                    "domain": [str(v) for v in graph.objects(prop, RDFS.domain)],
+                    "range": [str(v) for v in graph.objects(prop, RDFS.range)],
+                }
+            )
+
+    classes.sort(key=lambda c: c["label"])
+    properties.sort(key=lambda p: p["label"])
+    return {"sources": sources, "classes": classes, "properties": properties}
+
+
+@router.get("/ontology/export.ttl", response_class=PlainTextResponse)
+async def export_ontology_ttl(include_instances: bool = False):
+    """Merge bundled ontology TTL into one graph (imports inlined) for Protege."""
+    try:
+        import rdflib  # noqa: F401 — availability check
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"rdflib unavailable: {exc}") from exc
+
+    from app.services.protege_export import load_ontology_graph
+
+    graph = load_ontology_graph(include_instances=include_instances)
+    if len(graph) == 0:
+        raise HTTPException(status_code=404, detail="No ontology files found")
+
+    body = graph.serialize(format="turtle")
+    filename = "aakp-ontology-full.ttl" if include_instances else "aakp-ontology.ttl"
+    return PlainTextResponse(
+        content=body,
+        media_type="text/turtle",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/graph/assessment/{assessment_id}")
+async def assessment_graph(assessment_id: uuid.UUID):
+    try:
+        raw = await sparql_client.get_assessment_graph(assessment_id)
+    except Exception:
+        return {"nodes": [], "edges": []}
+
+    bindings = raw.get("results", {}).get("bindings", [])
+    nodes: dict[str, dict] = {}
+    edges: list[dict] = []
+    seen_edges: set[tuple[str, str, str]] = set()
+
+    def _short(uri: str) -> str:
+        if "#" in uri:
+            return uri.split("#")[-1]
+        return uri.rstrip("/").split("/")[-1]
+
+    for row in bindings:
+        s = row.get("s", {}).get("value")
+        s_type = row.get("sType", {}).get("value", "")
+        p = row.get("p", {}).get("value")
+        o = row.get("o", {}).get("value")
+        o_type = row.get("oType", {}).get("value", "")
+        if not (s and p and o):
+            continue
+
+        if s not in nodes:
+            nodes[s] = {"id": s, "type": _short(s_type) if s_type else "Resource", "label": _short(s)}
+
+        if o.startswith("http://") or o.startswith("https://"):
+            if o not in nodes:
+                nodes[o] = {"id": o, "type": _short(o_type) if o_type else "Resource", "label": _short(o)}
+            key = (s, o, p)
+            if key not in seen_edges:
+                seen_edges.add(key)
+                edges.append({"from": s, "to": o, "predicate": _short(p)})
+
+    return {"nodes": list(nodes.values()), "edges": edges}

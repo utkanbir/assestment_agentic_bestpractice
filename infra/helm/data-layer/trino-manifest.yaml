@@ -1,0 +1,84 @@
+# Trino — S25-DA-001 basic query federation (data layer)
+# Cross-source SQL over Iceberg/MinIO catalogs (dev single-node)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aakp-trino-config
+  namespace: aakp-data
+  labels:
+    app.kubernetes.io/part-of: aakp
+data:
+  node.properties: |
+    node.environment=aakp
+    node.id=trino-coordinator
+    node.data-dir=/data/trino
+  config.properties: |
+    coordinator=true
+    node-scheduler.include-coordinator=true
+    http-server.http.port=8080
+    discovery.uri=http://localhost:8080
+  jvm.config: |
+    -server
+    -Xmx1G
+    -XX:+UseG1GC
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aakp-trino
+  namespace: aakp-data
+  labels:
+    app: aakp-trino
+    app.kubernetes.io/part-of: aakp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aakp-trino
+  template:
+    metadata:
+      labels:
+        app: aakp-trino
+    spec:
+      containers:
+        - name: trino
+          image: trinodb/trino:440
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/trino
+          readinessProbe:
+            httpGet:
+              path: /v1/info
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 250m
+            limits:
+              memory: 2Gi
+              cpu: 1000m
+      volumes:
+        - name: config
+          configMap:
+            name: aakp-trino-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aakp-trino
+  namespace: aakp-data
+  labels:
+    app: aakp-trino
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: aakp-trino

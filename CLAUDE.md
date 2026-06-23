@@ -157,6 +157,62 @@ function Set-TaskStatus {
 | S5-KA-002 | PVTI_lAHOAP6I-M4Bap_HzgvuMwk |
 | S5-KA-003 | PVTI_lAHOAP6I-M4Bap_HzgvuMww |
 
+### Sprint 22 Item ID'leri (22-madde plan — Planned)
+
+| Task | Issue | Item ID |
+|------|-------|---------|
+| S22-FA-001 | #251 | PVTI_lAHOAP6I-M4Bap_HzgwE0aU |
+| S22-FA-002 | #252 | PVTI_lAHOAP6I-M4Bap_HzgwE0a8 |
+| S22-FA-003 | #253 | PVTI_lAHOAP6I-M4Bap_HzgwE0bs |
+| S22-FA-004 | #254 | PVTI_lAHOAP6I-M4Bap_HzgwE0cY |
+| S22-BA-001 | #255 | PVTI_lAHOAP6I-M4Bap_HzgwE0do |
+| S22-BA-002 | #256 | PVTI_lAHOAP6I-M4Bap_HzgwE0e8 |
+
+### Sprint 23 Item ID'leri (Planned)
+
+| Task | Issue | Item ID |
+|------|-------|---------|
+| S23-BA-001 | #257 | PVTI_lAHOAP6I-M4Bap_HzgwE0f0 |
+| S23-FA-001 | #258 | PVTI_lAHOAP6I-M4Bap_HzgwE0g8 |
+| S23-BA-002 | #259 | PVTI_lAHOAP6I-M4Bap_HzgwE0h4 |
+| S23-FA-002 | #260 | PVTI_lAHOAP6I-M4Bap_HzgwE0jA |
+| S23-BA-003 | #261 | PVTI_lAHOAP6I-M4Bap_HzgwE0kc |
+| S23-FA-003 | #262 | PVTI_lAHOAP6I-M4Bap_HzgwE0l0 |
+
+### Sprint 24 Item ID'leri (Done)
+
+| Task | Issue | Item ID |
+|------|-------|---------|
+| S24-BA-001 | #263 | PVTI_lAHOAP6I-M4Bap_HzgwE0nA |
+| S24-BA-002 | #264 | PVTI_lAHOAP6I-M4Bap_HzgwE0oQ |
+| S24-FA-001 | #265 | PVTI_lAHOAP6I-M4Bap_HzgwE0pY |
+| S24-FA-002 | #266 | PVTI_lAHOAP6I-M4Bap_HzgwE0qc |
+
+### Sprint 25 Item ID'leri (Done)
+
+| Task | Issue | Item ID |
+|------|-------|---------|
+| S25-FA-001 | #267 | PVTI_lAHOAP6I-M4Bap_HzgwE0sI |
+| S25-FA-002 | #268 | PVTI_lAHOAP6I-M4Bap_HzgwE0s8 |
+| S25-FA-003 | #269 | PVTI_lAHOAP6I-M4Bap_HzgwE0uU |
+| S25-FA-004 | #270 | PVTI_lAHOAP6I-M4Bap_HzgwE0vI |
+| S25-DA-001 | #271 | PVTI_lAHOAP6I-M4Bap_HzgwE0wk |
+
+## Dev & Deploy Workflow
+
+**Günlük geliştirme (local veya cluster port-forward):**
+```powershell
+.\scripts\dev-local.ps1                        # cluster API/UI + manual instructions
+.\scripts\dev-local.ps1 -StartApi -StartFrontend # local uvicorn + vite (infra via port-forward)
+```
+
+**Cluster'a hızlı deploy (build + patch manifest + apply):**
+```powershell
+.\scripts\deploy-quick.ps1                       # both, tag dev-yyyyMMdd-HHmm
+.\scripts\deploy-quick.ps1 -Target frontend      # sadece frontend
+.\scripts\deploy-quick.ps1 -Target api -Tag dev-fix
+```
+
 ## Security
 
 - `ANTHROPIC_API_KEY` asla dosyaya yazılmaz, git'e commit edilmez
@@ -170,7 +226,20 @@ function Set-TaskStatus {
 - Init container (`alembic-migrate`) ve main container her zaman **aynı tag** kullanmalı
 - `kubectl set image deployment/aakp-api alembic-migrate=aakp/api:<tag> api=aakp/api:<tag>`
 
-## Test Komutu
+## Testing Workflow
+
+**Agent default:** Uzun testleri otomatik çalıştırma — kullanıcı açıkça istemedikçe.
+
+**Do NOT automatically run:**
+- pytest integration / sprint testleri (`test_23_sprint28.py`, `test_22_sprint27.py`, vb.)
+- Playwright e2e (`npm run test:e2e`, `e2e/sprint*/`, `scripts/verify-sprint*.ps1`)
+- Tam test suite'leri (`pytest tests/`, CI equivalent local runs)
+
+**Only run long tests when the user explicitly asks**, e.g. "testleri çalıştır", "e2e koş", "verify sprint".
+
+**Quick local checks OK** when needed for a fix: single targeted unit test, lint/typecheck.
+
+## Test Komutu (manuel — agent otomatik koşmaz)
 
 ```powershell
 $env:API_BASE = "http://localhost:8000/api/v1"

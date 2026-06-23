@@ -19,6 +19,18 @@ class AssessmentUpdate(BaseModel):
     status: AssessmentStatus | None = None
 
 
+class AssessmentDuplicateIn(BaseModel):
+    include_qa: bool = False
+    include_tasks: bool = True
+
+
+class LatestInterviewOut(BaseModel):
+    interview_id: str
+    task_id: str
+    workstream: str
+    created_at: datetime
+
+
 class AssessmentOut(BaseModel):
     model_config = {"from_attributes": True}
 
@@ -28,5 +40,10 @@ class AssessmentOut(BaseModel):
     status: AssessmentStatus
     description: str | None
     kg_uri: str | None
+    assessment_mode: str = "live"
+    simulation_status: str | None = None
+    simulation_progress: dict | None = None
+    company_profile: dict | None = None
+    consultant_synthesis: str | None = None
     created_at: datetime
     updated_at: datetime

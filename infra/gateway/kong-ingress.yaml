@@ -1,6 +1,9 @@
 # Kong Ingress Rules — S1-DA-004
 # Routes all AAKP traffic through Kong Gateway proxy (NodePort 30080)
 #
+# OpenMetadata UI: proxied at /openmetadata/ → aakp-openmetadata:8585
+# Frontend catalog page: /catalog (SPA route)
+#
 # Apply after services are running:
 #   kubectl apply -f infra/gateway/kong-ingress.yaml
 #
@@ -57,8 +60,8 @@ spec:
                 name: aakp-api
                 port:
                   number: 8000
-          - path: /health
-            pathType: Exact
+          - path: /health/
+            pathType: Prefix
             backend:
               service:
                 name: aakp-api
@@ -71,6 +74,27 @@ spec:
                 name: aakp-api
                 port:
                   number: 8000
+---
+# OpenMetadata catalog UI → aakp-openmetadata (S25-DA-001)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aakp-openmetadata-ingress
+  namespace: aakp-information
+  labels:
+    app.kubernetes.io/part-of: aakp
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /openmetadata/
+            pathType: Prefix
+            backend:
+              service:
+                name: aakp-openmetadata
+                port:
+                  number: 8585
 ---
 # Frontend → aakp-frontend (catch-all, must come after /api and /ws)
 apiVersion: networking.k8s.io/v1

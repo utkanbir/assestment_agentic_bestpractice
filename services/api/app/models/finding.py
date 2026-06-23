@@ -56,6 +56,7 @@ class Finding(UUIDMixin, TimestampMixin, Base):
     severity: Mapped[str] = mapped_column(String(50))
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     approval_status: Mapped[str] = mapped_column(String(50), default="pending")
+    reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     kg_uri: Mapped[str | None] = mapped_column(String(500))
 
     evidence: Mapped["Evidence"] = relationship(back_populates="findings")
@@ -73,6 +74,7 @@ class Risk(UUIDMixin, TimestampMixin, Base):
     impact: Mapped[str | None] = mapped_column(Text)
     kg_uri: Mapped[str | None] = mapped_column(String(500))
     approval_status: Mapped[str] = mapped_column(String(50), default="pending")  # S5-BA-005
+    reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     finding: Mapped["Finding"] = relationship(back_populates="risks")
 
@@ -84,7 +86,10 @@ class Recommendation(UUIDMixin, TimestampMixin, Base):
     description: Mapped[str] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(default=1)
     effort: Mapped[str | None] = mapped_column(String(50))
+    title: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    horizon: Mapped[str | None] = mapped_column(String(20), nullable=True)
     approval_status: Mapped[str] = mapped_column(String(50), default="pending")  # S5-BA-005
+    reviewer_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     finding: Mapped["Finding"] = relationship(back_populates="recommendations")
 

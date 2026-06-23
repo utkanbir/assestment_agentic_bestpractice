@@ -1,0 +1,58 @@
+# Domain concept catalog for agent training enrichment (refersToConcept)
+# URIs use https://aakp.ai/data/ prefix (migros_instances.ttl)
+
+workstream_capabilities:
+  kubernetes: [capability/container-platform]
+  cloud_strategy: [capability/cloud-strategy]
+  ingestion: [capability/data-ingestion]
+  teradata_dr: [capability/data-warehouse]
+  lakehouse: [capability/lakehouse]
+  governance: [capability/data-governance]
+  data_product: [capability/self-serve-analytics]
+  cdp: [capability/customer-data-platform]
+
+capabilities:
+  capability/container-platform:
+    label: Container Platform
+    description: Konteyner orkestrasyon ve platform kapasitesi
+  capability/cloud-strategy:
+    label: Cloud Strategy
+    description: Bulut dönüşüm vizyonu ve uygulama
+  capability/data-ingestion:
+    label: Data Ingestion
+    description: Veri toplama ve iletme
+  capability/data-warehouse:
+    label: Data Warehouse
+    description: Kurumsal veri ambarı
+  capability/lakehouse:
+    label: Data Lakehouse
+    description: Unified analytics platform
+  capability/data-governance:
+    label: Data Governance
+    description: Veri yönetişimi ve katalog
+  capability/customer-data-platform:
+    label: Customer Data Platform
+    description: Müşteri veri platformu
+  capability/self-serve-analytics:
+    label: Self-Serve Analytics
+    description: İş kullanıcısı analitiği
+
+themes:
+  theme/vendor-independence:
+    label: Vendor Independence
+    keywords: [vendor, bağımsız, lock-in, taşınabilir, portable]
+  theme/horizontal-scalability:
+    label: Horizontal Scalability
+    keywords: [scale, ölçek, elastik, horizontal, replica]
+  theme/high-availability:
+    label: High Availability
+    keywords: [availability, yüksek erişilebilirlik, failover, sla, uptime]
+  theme/security-compliance:
+    label: Security & Compliance
+    keywords: [güvenlik, rbac, compliance, politika, policy, secret]
+  theme/data-quality:
+    label: Data Quality
+    keywords: [kalite, quality, doğruluk, validation, profiling]
+  theme/cost-optimization:
+    label: Cost Optimization
+    keywords: [maliyet, cost, optimizasyon, finops, kaynak]

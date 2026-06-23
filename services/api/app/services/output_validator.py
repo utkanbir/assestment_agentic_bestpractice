@@ -2,6 +2,7 @@
 # S5-BA-003: PII anonymization from report content
 
 import logging
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,22 +11,31 @@ log = logging.getLogger("output_validator")
 
 
 async def validate_evidence_chain(assessment_id: str, db: AsyncSession) -> dict:
-    """S5-BA-002: Every finding must have at least one evidence before report generation."""
+    """S5-BA-002 / S18: Every finding must link to evidence via task assessment."""
     from app.models.finding import Finding, Evidence
+    from app.models.assessment import Task
 
-    stmt = (
-        select(Finding.id, Finding.title)
-        .where(Finding.assessment_id == assessment_id)
-    )
+    aid = uuid.UUID(assessment_id) if isinstance(assessment_id, str) else assessment_id
+    task_result = await db.execute(select(Task.id).where(Task.assessment_id == aid))
+    task_ids = [row[0] for row in task_result.all()]
+    if not task_ids:
+        return {"valid": True, "total_findings": 0, "uncovered_findings": []}
+
+    stmt = select(Finding.id, Finding.description, Finding.evidence_id).where(Finding.task_id.in_(task_ids))
     result = await db.execute(stmt)
     findings = result.all()
 
     uncovered: list[dict] = []
     for finding in findings:
-        ev_stmt = select(Evidence.id).where(Evidence.finding_id == finding.id).limit(1)
-        ev_result = await db.execute(ev_stmt)
-        if ev_result.scalar() is None:
-            uncovered.append({"finding_id": str(finding.id), "title": finding.title})
+        if finding.evidence_id:
+            ev_stmt = select(Evidence.id).where(Evidence.id == finding.evidence_id).limit(1)
+            ev_result = await db.execute(ev_stmt)
+            if ev_result.scalar() is not None:
+                continue
+        uncovered.append({
+            "finding_id": str(finding.id),
+            "title": (finding.description or "")[:80],
+        })
 
     return {
         "valid": len(uncovered) == 0,

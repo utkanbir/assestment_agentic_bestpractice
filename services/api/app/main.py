@@ -10,9 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.metrics import metrics_app  # S6-BA-001
-from app.routers import assessments, health, interviews, knowledge, qdrant, question_bank, recommendations, reports, risks, tasks, ws
+from app.routers import assessments, chat, consultants, health, interviews, knowledge, qdrant, question_bank, recommendations, reports, risks, simulation, tasks, ws
 from app.routers.findings import evidence_router, finding_router
-from app.routers import orchestrator, approvals, agent_mgmt
+from app.routers import orchestrator, approvals, agent_mgmt, architecture, data_products
 from app.middleware.guardrails import PIIGuardrailMiddleware
 from app.middleware.tracing import setup_tracing  # S6-BA-006
 
@@ -33,6 +33,8 @@ async def lifespan(app: FastAPI):
         from app.services.sparql_client import sparql_client
         result = await sparql_client.register_all_agents()
         logger.info("Agent registry: %s", result.get("status"))
+        label_result = await sparql_client.backfill_instance_labels()
+        logger.info("KG label backfill: %s", label_result.get("status"))
     except Exception as exc:
         logger.warning("Agent registry bootstrap failed (non-fatal): %s", exc)
 
@@ -61,7 +63,9 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(simulation.router, prefix="/api/v1")
 app.include_router(assessments.router, prefix="/api/v1")
+app.include_router(consultants.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(interviews.router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
@@ -76,3 +80,6 @@ app.include_router(knowledge.router, prefix="/api/v1")
 app.include_router(orchestrator.router, prefix="/api/v1")
 app.include_router(approvals.router, prefix="/api/v1")
 app.include_router(agent_mgmt.router, prefix="/api/v1")
+app.include_router(architecture.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
+app.include_router(data_products.router, prefix="/api/v1")

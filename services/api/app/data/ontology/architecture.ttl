@@ -1,0 +1,53 @@
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix aakp: <https://aakp.ai/ontology/assessment#> .
+@prefix arch: <https://aakp.ai/ontology/architecture#> .
+
+<https://aakp.ai/ontology/architecture>
+    a owl:Ontology ;
+    owl:imports <https://aakp.ai/ontology/assessment> ;
+    rdfs:label "AAKP Architecture Ontology" ;
+    owl:versionInfo "0.3" .
+
+# ─── Classes ────────────────────────────────────────────────────────────────
+
+arch:Capability   a owl:Class ; rdfs:label "Capability" .
+arch:System       a owl:Class ; rdfs:label "System" .
+arch:DataProduct  a owl:Class ; rdfs:label "DataProduct" .
+arch:DataFlow     a owl:Class ; rdfs:label "DataFlow" .
+
+# S2-KA-006: System subclass taxonomy (Migros tech stack)
+arch:DataWarehouse      a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "DataWarehouse" .
+arch:DataIngestion      a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "DataIngestion" .
+arch:DataOrchestration  a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "DataOrchestration" .
+arch:DataGovernance     a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "DataGovernance" .
+arch:DataVisualization  a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "DataVisualization" .
+arch:DataPlatform       a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "DataPlatform" .
+arch:StreamingSystem    a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "StreamingSystem" .
+arch:MLPlatform         a owl:Class ; rdfs:subClassOf arch:System ; rdfs:label "MLPlatform" .
+
+# ─── Object Properties ───────────────────────────────────────────────────────
+
+arch:supportedBySystem    a owl:ObjectProperty ; rdfs:domain arch:Capability ; rdfs:range arch:System .
+arch:hasGap               a owl:ObjectProperty ; rdfs:domain arch:Capability .
+arch:hasMaturityScore     a owl:ObjectProperty ; rdfs:domain arch:Capability .
+arch:assessedInTask       a owl:ObjectProperty ; rdfs:domain arch:Capability ; rdfs:range aakp:Task .
+arch:supportsCapability   a owl:ObjectProperty ; rdfs:domain arch:System ; rdfs:range arch:Capability .
+arch:dependsOnSystem      a owl:ObjectProperty ; rdfs:domain arch:System ; rdfs:range arch:System .
+arch:containsDataProduct  a owl:ObjectProperty ; rdfs:domain arch:System ; rdfs:range arch:DataProduct .
+arch:ownedBy              a owl:ObjectProperty ; rdfs:domain arch:DataProduct .
+arch:servesCapability     a owl:ObjectProperty ; rdfs:domain arch:DataProduct ; rdfs:range arch:Capability .
+arch:sourceSystem         a owl:ObjectProperty ; rdfs:domain arch:DataFlow ; rdfs:range arch:System .
+arch:targetSystem         a owl:ObjectProperty ; rdfs:domain arch:DataFlow ; rdfs:range arch:System .
+arch:transfersDataProduct a owl:ObjectProperty ; rdfs:domain arch:DataFlow ; rdfs:range arch:DataProduct .
+
+# ─── Datatype Properties ─────────────────────────────────────────────────────
+
+arch:hasName        a owl:DatatypeProperty ; rdfs:range xsd:string .
+arch:hasDescription a owl:DatatypeProperty ; rdfs:range xsd:string .
+arch:hasTechnology  a owl:DatatypeProperty ; rdfs:domain arch:System ; rdfs:range xsd:string ;
+                      rdfs:comment "e.g. Teradata, NiFi, Kubernetes, DataStage" .
+arch:hasVersion     a owl:DatatypeProperty ; rdfs:domain arch:System ; rdfs:range xsd:string .
+arch:isLegacy       a owl:DatatypeProperty ; rdfs:domain arch:System ; rdfs:range xsd:boolean .
+arch:pgId           a owl:DatatypeProperty ; rdfs:range xsd:string .

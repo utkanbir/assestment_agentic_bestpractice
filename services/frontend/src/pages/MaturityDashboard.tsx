@@ -1,7 +1,12 @@
-// S7-FA-004: Maturity dashboard — workstream olgunluk skorları (S8-BA-001 API)
+// S17: Olgunluk — radar + workstream kartları
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { getMaturityScores, upsertMaturityScore, MaturityScoreItem, WORKSTREAMS } from "../api";
+import {
+  getMaturityScores, upsertMaturityScore, listTasks, listFindings,
+  aiSuggestMaturity,
+  MaturityScoreItem, WORKSTREAMS,
+} from "../api";
+import { useAssessment, useAssessmentNavLink } from "../context/AssessmentContext";
+import AssessmentPageHeader from "../components/AssessmentPageHeader";
 
 const LEVEL_LABELS: Record<string, { label: string; color: string }> = {
   initial:    { label: "Başlangıç",  color: "#dc2626" },
@@ -19,99 +24,125 @@ function scoreColor(score: number): string {
   return "#dc2626";
 }
 
+function RadarChart({ scores }: { scores: { label: string; value: number }[] }) {
+  const size = 220;
+  const cx = size / 2;
+  const cy = size / 2;
+  const maxR = 90;
+  const n = scores.length || 1;
+  const angle = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+
+  const point = (i: number, v: number) => {
+    const r = (v / 5) * maxR;
+    return { x: cx + r * Math.cos(angle(i)), y: cy + r * Math.sin(angle(i)) };
+  };
+
+  const gridLevels = [1, 2, 3, 4, 5];
+  const dataPoints = scores.map((s, i) => point(i, s.value));
+  const poly = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
+
+  return (
+    <svg width={size} height={size} style={{ display: "block", margin: "0 auto" }}>
+      {gridLevels.map((lvl) => (
+        <polygon
+          key={lvl}
+          points={scores.map((_, i) => {
+            const p = point(i, lvl);
+            return `${p.x},${p.y}`;
+          }).join(" ")}
+          fill="none"
+          stroke="#334155"
+          strokeWidth={1}
+        />
+      ))}
+      {scores.map((s, i) => {
+        const p = point(i, 5);
+        return (
+          <text key={s.label} x={p.x} y={p.y} fill="#64748b" fontSize={8} textAnchor="middle" dominantBaseline="middle">
+            {s.label.slice(0, 8)}
+          </text>
+        );
+      })}
+      <polygon points={poly} fill="#3b82f633" stroke="#3b82f6" strokeWidth={2} />
+    </svg>
+  );
+}
+
 function WorkstreamRow({
   ws,
   score,
+  findingCount,
   onSave,
+  onInterview,
+  onAiSuggest,
 }: {
   ws: typeof WORKSTREAMS[number];
   score: MaturityScoreItem | undefined;
-  onSave: (workstream: string, s: number, level: string, notes: string) => Promise<void>;
+  findingCount: number;
+  onSave: (workstream: string, s: number, level: string, notes: string, target?: number) => Promise<void>;
+  onInterview: () => void;
+  onAiSuggest: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(score?.score?.toString() ?? "2.0");
+  const [target, setTarget] = useState(score?.target_score?.toString() ?? "4.0");
   const [level, setLevel] = useState(score?.maturity_level ?? "initial");
   const [notes, setNotes] = useState(score?.notes ?? "");
   const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await onSave(ws.id, parseFloat(val), level, notes);
-      setEditing(false);
-    } finally { setSaving(false); }
-  };
+  const [aiBusy, setAiBusy] = useState(false);
 
   const pct = score ? (score.score / 5) * 100 : 0;
   const color = score ? scoreColor(score.score) : "#334155";
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(ws.id, parseFloat(val), level, notes, parseFloat(target));
+      setEditing(false);
+    } finally { setSaving(false); }
+  };
+
+  const handleAi = async () => {
+    setAiBusy(true);
+    try {
+      await onAiSuggest();
+    } finally { setAiBusy(false); }
+  };
+
   return (
-    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "12px 16px", marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: editing ? 12 : 0 }}>
+    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: 14, marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{ fontSize: 22 }}>{ws.icon}</span>
         <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{ws.label}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {score && (
-                <span style={{
-                  background: LEVEL_LABELS[score.maturity_level]?.color + "22",
-                  color: LEVEL_LABELS[score.maturity_level]?.color ?? "#94a3b8",
-                  border: `1px solid ${LEVEL_LABELS[score.maturity_level]?.color ?? "#334155"}44`,
-                  borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600,
-                }}>
-                  {LEVEL_LABELS[score.maturity_level]?.label ?? score.maturity_level}
-                </span>
-              )}
-              <span style={{ fontSize: 16, fontWeight: 800, color: score ? scoreColor(score.score) : "#475569" }}>
-                {score ? score.score.toFixed(1) : "—"} <span style={{ fontSize: 12, fontWeight: 400, color: "#64748b" }}>/ 5</span>
-              </span>
-              <button
-                onClick={() => setEditing((v) => !v)}
-                style={{
-                  background: editing ? "#334155" : "transparent",
-                  border: "1px solid #334155", borderRadius: 6,
-                  padding: "3px 10px", color: "#94a3b8", cursor: "pointer", fontSize: 11,
-                }}
-              >
-                {editing ? "Kapat" : score ? "Düzenle" : "Gir"}
-              </button>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+            <strong style={{ fontSize: 14 }}>{ws.label}</strong>
+            <span style={{ fontSize: 12, color: "#64748b" }}>{findingCount} bulgu</span>
           </div>
-          {/* Progress bar */}
-          <div style={{ height: 6, background: "#0f1117", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
+          <div style={{ height: 8, background: "#0f1117", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4 }} />
           </div>
-          {score?.notes && <p style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{score.notes}</p>}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#64748b" }}>
+            <span>{score ? `${score.score}/5 — ${LEVEL_LABELS[score.maturity_level]?.label ?? score.maturity_level}` : "Skor girilmedi"}</span>
+            {score?.target_score != null && <span>Hedef: {score.target_score}/5</span>}
+          </div>
         </div>
+        <button onClick={() => setEditing((v) => !v)} style={ghostBtn}>{editing ? "İptal" : "Düzenle"}</button>
+        <button onClick={handleAi} disabled={aiBusy} style={{ ...ghostBtn, color: "#a78bfa", borderColor: "#7c3aed" }}>
+          {aiBusy ? "…" : "AI Öner"}
+        </button>
+        <button onClick={onInterview} style={ghostBtn}>Interview</button>
       </div>
-
       {editing && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 100 }}>
-            <label style={{ fontSize: 10, color: "#64748b" }}>Skor (0-5)</label>
-            <input type="number" min="0" max="5" step="0.5" value={val}
-              onChange={(e) => setVal(e.target.value)}
-              style={{ background: "#0f1117", border: "1px solid #334155", borderRadius: 6, padding: "5px 8px", color: "#e2e8f0", fontSize: 13, width: 80 }} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-            <label style={{ fontSize: 10, color: "#64748b" }}>Olgunluk Seviyesi</label>
-            <select value={level} onChange={(e) => setLevel(e.target.value)}
-              style={{ background: "#0f1117", border: "1px solid #334155", borderRadius: 6, padding: "5px 8px", color: "#e2e8f0", fontSize: 13 }}>
-              {Object.entries(LEVEL_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 2 }}>
-            <label style={{ fontSize: 10, color: "#64748b" }}>Not</label>
-            <input placeholder="Opsiyonel not…" value={notes} onChange={(e) => setNotes(e.target.value)}
-              style={{ background: "#0f1117", border: "1px solid #334155", borderRadius: 6, padding: "5px 8px", color: "#e2e8f0", fontSize: 13 }} />
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end" }}>
-            <button onClick={handleSave} disabled={saving}
-              style={{ background: "#3b82f6", border: "none", borderRadius: 6, padding: "6px 14px", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600, opacity: saving ? 0.6 : 1 }}>
-              {saving ? "…" : "Kaydet"}
-            </button>
-          </div>
+        <div style={{ marginTop: 12, display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+          <input value={val} onChange={(e) => setVal(e.target.value)} placeholder="Skor 0-5" style={inputStyle} />
+          <input value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Hedef skor" style={inputStyle} />
+          <select value={level} onChange={(e) => setLevel(e.target.value)} style={inputStyle}>
+            {Object.keys(LEVEL_LABELS).map((l) => <option key={l} value={l}>{LEVEL_LABELS[l].label}</option>)}
+          </select>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notlar" style={inputStyle} />
+          <button onClick={handleSave} disabled={saving} style={{ ...ghostBtn, gridColumn: "span 2", background: "#3b82f6", color: "#fff", border: "none" }}>
+            {saving ? "…" : "Kaydet"}
+          </button>
         </div>
       )}
     </div>
@@ -119,90 +150,94 @@ function WorkstreamRow({
 }
 
 export default function MaturityDashboard() {
-  const [searchParams] = useSearchParams();
-  const assessmentId = searchParams.get("assessment_id") ?? "";
+  const { assessmentId } = useAssessment();
+  const withAssessment = useAssessmentNavLink();
   const [scores, setScores] = useState<MaturityScoreItem[]>([]);
+  const [findingsByWs, setFindingsByWs] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [readOnly] = useState(false);
 
-  const load = () => {
-    if (!assessmentId) { setLoading(false); return; }
-    getMaturityScores(assessmentId)
-      .then(setScores)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const load = async () => {
+    if (!assessmentId) return;
+    setLoading(true);
+    try {
+      const [mat, tasks] = await Promise.all([
+        getMaturityScores(assessmentId),
+        listTasks(assessmentId),
+      ]);
+      setScores(mat);
+      const counts: Record<string, number> = {};
+      await Promise.all(tasks.map(async (t) => {
+        try {
+          const f = await listFindings(t.id);
+          counts[t.workstream] = f.length;
+        } catch { counts[t.workstream] = 0; }
+      }));
+      setFindingsByWs(counts);
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [assessmentId]);
 
   const scoreByWs = Object.fromEntries(scores.map((s) => [s.workstream, s]));
-  const avgScore = scores.length ? scores.reduce((a, s) => a + s.score, 0) / scores.length : 0;
-  const covered = scores.length;
+  const radarData = WORKSTREAMS.map((ws) => ({
+    label: ws.label,
+    value: scoreByWs[ws.id]?.score ?? 0,
+  }));
+  const avg = scores.length
+    ? (scores.reduce((s, x) => s + x.score, 0) / scores.length).toFixed(2)
+    : "—";
 
-  const handleSave = async (workstream: string, score: number, maturity_level: string, notes: string) => {
+  const handleSave = async (workstream: string, score: number, maturity_level: string, notes: string, target_score?: number) => {
     if (!assessmentId) return;
-    const updated = await upsertMaturityScore(assessmentId, workstream, { score, maturity_level, notes: notes || undefined });
-    setScores((prev) => {
-      const idx = prev.findIndex((s) => s.workstream === workstream);
-      if (idx >= 0) { const next = [...prev]; next[idx] = updated; return next; }
-      return [...prev, updated];
-    });
+    await upsertMaturityScore(assessmentId, workstream, { score, maturity_level, notes, target_score });
+    load();
+  };
+
+  const handleAiSuggest = async (workstream: string) => {
+    if (!assessmentId) return;
+    await aiSuggestMaturity(assessmentId, workstream);
+    load();
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Olgunluk Matrisi</h1>
-        <p style={{ color: "#94a3b8", fontSize: 14 }}>
-          Workstream bazlı olgunluk skorları (1–5)
-          {assessmentId && ` — ${assessmentId.slice(0, 8)}…`}
-        </p>
-      </div>
+    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <AssessmentPageHeader
+        title="Olgunluk Değerlendirmesi"
+        subtitle={`Genel olgunluk: ${avg}/5`}
+      />
 
-      {!assessmentId ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
-          <p style={{ fontSize: 36, marginBottom: 12 }}>📊</p>
-          <p>Assessment seçilmedi. URL'ye ?assessment_id= ekleyin.</p>
-        </div>
-      ) : loading ? (
-        <p style={{ textAlign: "center", color: "#64748b", padding: 40 }}>Yükleniyor…</p>
+      {loading ? (
+        <p style={{ color: "#64748b", textAlign: "center", padding: 40 }}>Yükleniyor…</p>
       ) : (
         <>
-          {/* Summary */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
-            {[
-              { label: "Ortalama Skor", value: covered > 0 ? avgScore.toFixed(2) : "—", color: covered > 0 ? scoreColor(avgScore) : "#475569" },
-              { label: "Değerlendirilen WS", value: `${covered} / ${WORKSTREAMS.length}`, color: "#60a5fa" },
-              { label: "En Düşük", value: scores.length ? Math.min(...scores.map((s) => s.score)).toFixed(1) : "—", color: "#f97316" },
-              { label: "En Yüksek", value: scores.length ? Math.max(...scores.map((s) => s.score)).toFixed(1) : "—", color: "#22c55e" },
-            ].map((s) => (
-              <div key={s.label} style={{ flex: 1, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "12px 16px" }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{s.label}</div>
-              </div>
-            ))}
+          <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 10, padding: 16, marginBottom: 20 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, textAlign: "center", marginBottom: 8 }}>Workstream Radar</h2>
+            <RadarChart scores={radarData} />
           </div>
 
-          {/* Workstream rows */}
           {WORKSTREAMS.map((ws) => (
             <WorkstreamRow
               key={ws.id}
               ws={ws}
               score={scoreByWs[ws.id]}
-              onSave={handleSave}
+              findingCount={findingsByWs[ws.id] ?? 0}
+              onSave={readOnly ? async () => {} : handleSave}
+              onInterview={() => window.location.assign(withAssessment("/interview"))}
+              onAiSuggest={() => handleAiSuggest(ws.id)}
             />
           ))}
-
-          {/* Legend */}
-          <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-            {Object.entries(LEVEL_LABELS).map(([k, v]) => (
-              <div key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: v.color }} />
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{v.label}</span>
-              </div>
-            ))}
-          </div>
         </>
       )}
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  background: "#0f1117", border: "1px solid #334155", borderRadius: 6,
+  padding: "6px 10px", color: "#e2e8f0", fontSize: 12,
+};
+const ghostBtn: React.CSSProperties = {
+  background: "transparent", border: "1px solid #334155", borderRadius: 6,
+  padding: "5px 10px", color: "#94a3b8", fontSize: 11, cursor: "pointer",
+};

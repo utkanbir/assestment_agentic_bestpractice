@@ -16,9 +16,16 @@ aakp:Task        a owl:Class ; rdfs:label "Task" .
 aakp:Interview   a owl:Class ; rdfs:label "Interview" .
 aakp:Question    a owl:Class ; rdfs:label "Question" .
 aakp:Answer      a owl:Class ; rdfs:label "Answer" .
+aakp:Consultant  a owl:Class ; rdfs:label "Consultant" .
 aakp:Evidence    a owl:Class ; rdfs:label "Evidence" .
 aakp:Finding     a owl:Class ; rdfs:label "Finding" .
 aakp:Report      a owl:Class ; rdfs:label "Report" .
+aakp:TrainingInteraction a owl:Class ; rdfs:label "TrainingInteraction" .
+aakp:AgentKnowledge      a owl:Class ; rdfs:label "AgentKnowledge" .
+aakp:AssessmentAgent     a owl:Class ; rdfs:label "Assessment Agent" ;
+    rdfs:comment "Workstream değerlendirme ajanı (Fuseki agent registry)" .
+aakp:PracticeTheme       a owl:Class ; rdfs:label "PracticeTheme" ;
+    rdfs:comment "Çapraz-workstream uygulama teması (ör. vendor independence, scalability)" .
 
 # Evidence subclasses
 aakp:InterviewEvidence     a owl:Class ; rdfs:subClassOf aakp:Evidence ; rdfs:label "InterviewEvidence" .
@@ -77,6 +84,8 @@ aakp:suggestedQuestion   a owl:ObjectProperty ;
                            rdfs:comment "Links an interview to a pending agent-suggested question awaiting approval." .
 aakp:producesEvidence    a owl:ObjectProperty ; rdfs:domain aakp:Interview ; rdfs:range aakp:Evidence .
 aakp:hasAnswer           a owl:ObjectProperty ; rdfs:domain aakp:Question ; rdfs:range aakp:Answer .
+aakp:hasConsultant       a owl:ObjectProperty ; rdfs:domain aakp:Assessment ; rdfs:range aakp:Consultant .
+aakp:reviewedByConsultant a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Consultant .
 aakp:answersQuestion     a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Question .
 aakp:supportsEvidence    a owl:ObjectProperty ; rdfs:domain aakp:Answer ; rdfs:range aakp:Evidence .
 aakp:supportsFinding     a owl:ObjectProperty ; rdfs:domain aakp:Evidence ; rdfs:range aakp:Finding .
@@ -123,6 +132,13 @@ aakp:questionApprovalStatus a owl:DatatypeProperty ;
                               rdfs:range xsd:string ;
                               rdfs:comment "Values: pending | approved | rejected. Default approved for consultant questions, pending for agent suggestions." .
 
+# Consultant
+aakp:firstName         a owl:DatatypeProperty ; rdfs:domain aakp:Consultant ; rdfs:range xsd:string .
+aakp:lastName          a owl:DatatypeProperty ; rdfs:domain aakp:Consultant ; rdfs:range xsd:string .
+aakp:consultantRole    a owl:DatatypeProperty ; rdfs:domain aakp:Consultant ; rdfs:range xsd:string .
+aakp:consultantExpertise a owl:DatatypeProperty ; rdfs:domain aakp:Consultant ; rdfs:range xsd:string .
+aakp:consultantComment a owl:DatatypeProperty ; rdfs:domain aakp:Answer ; rdfs:range xsd:string .
+
 # Evidence
 aakp:content      a owl:DatatypeProperty ; rdfs:domain aakp:Evidence ; rdfs:range xsd:string .
 aakp:capturedAt   a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
@@ -138,3 +154,26 @@ aakp:isInvalid       a owl:DatatypeProperty ; rdfs:domain aakp:Finding ; rdfs:ra
 aakp:generatedAt  a owl:DatatypeProperty ; rdfs:range xsd:dateTime .
 aakp:reportTitle  a owl:DatatypeProperty ; rdfs:domain aakp:Report ; rdfs:range xsd:string .
 aakp:executiveSummary a owl:DatatypeProperty ; rdfs:domain aakp:Report ; rdfs:range xsd:string .
+
+# Agent training (S24)
+aakp:trainingMode     a owl:DatatypeProperty ; rdfs:domain aakp:TrainingInteraction ; rdfs:range xsd:string .
+aakp:trainingQuestion a owl:DatatypeProperty ; rdfs:domain aakp:TrainingInteraction ; rdfs:range xsd:string .
+aakp:trainingAnswer   a owl:DatatypeProperty ; rdfs:domain aakp:TrainingInteraction ; rdfs:range xsd:string .
+aakp:answerAuthor     a owl:DatatypeProperty ; rdfs:domain aakp:TrainingInteraction ; rdfs:range xsd:string .
+aakp:knowledgeContent a owl:DatatypeProperty ; rdfs:domain aakp:AgentKnowledge ; rdfs:range xsd:string .
+aakp:knowledgeMode    a owl:DatatypeProperty ; rdfs:domain aakp:AgentKnowledge ; rdfs:range xsd:string .
+aakp:sourceDocId      a owl:DatatypeProperty ; rdfs:domain aakp:AgentKnowledge ; rdfs:range xsd:string .
+aakp:sourceFilename   a owl:DatatypeProperty ; rdfs:domain aakp:AgentKnowledge ; rdfs:range xsd:string .
+aakp:forWorkstream    a owl:DatatypeProperty ; rdfs:range xsd:string .
+aakp:hasTrainingEvent a owl:ObjectProperty ; rdfs:range aakp:TrainingInteraction .
+aakp:hasAgentKnowledge a owl:ObjectProperty ; rdfs:range aakp:AgentKnowledge .
+aakp:refersToConcept   a owl:ObjectProperty ;
+    rdfs:range  owl:Thing ;
+    rdfs:comment "Eğitim kaydının bağlandığı domain kavramı (arch:Capability veya aakp:PracticeTheme)" .
+
+# Agent registry (S3)
+aakp:hasAgentId     a owl:DatatypeProperty ; rdfs:domain aakp:AssessmentAgent ; rdfs:range xsd:string .
+aakp:hasDisplayName a owl:DatatypeProperty ; rdfs:domain aakp:AssessmentAgent ; rdfs:range xsd:string .
+aakp:hasDescription a owl:DatatypeProperty ; rdfs:domain aakp:AssessmentAgent ; rdfs:range xsd:string .
+aakp:isActive       a owl:DatatypeProperty ; rdfs:domain aakp:AssessmentAgent ; rdfs:range xsd:boolean .
+aakp:hasVersion     a owl:DatatypeProperty ; rdfs:domain aakp:AssessmentAgent ; rdfs:range xsd:string .

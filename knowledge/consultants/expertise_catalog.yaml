@@ -1,0 +1,79 @@
+groups:
+  - id: data_platforms
+    name: Data Platforms
+    tags:
+      - Oracle
+      - Snowflake
+      - Databricks
+      - PostgreSQL
+      - SQL Server
+      - BigQuery
+      - Redshift
+      - Teradata
+      - SAP HANA
+      - MongoDB
+  - id: data_engineering
+    name: Data Engineering
+    tags:
+      - ETL/ELT
+      - Data Mesh
+      - Data Lakehouse
+      - Apache Spark
+      - Kafka
+      - Airflow
+      - dbt
+      - Flink
+      - NiFi
+      - CDC
+  - id: analytics_bi
+    name: Analytics & BI
+    tags:
+      - Power BI
+      - Tableau
+      - Looker
+      - Qlik
+      - Semantic Layer
+      - Self-Service Analytics
+      - OLAP
+  - id: ai_ml
+    name: AI / ML
+    tags:
+      - MLOps
+      - Computer Vision
+      - NLP
+      - Feature Store
+      - Model Governance
+      - Model Monitoring
+      - AutoML
+      - Deep Learning
+  - id: genai
+    name: GenAI
+    tags:
+      - LLM
+      - RAG
+      - Prompt Engineering
+      - Vector DB
+      - Agentic AI
+      - Fine-tuning
+      - Embeddings
+      - Guardrails
+  - id: cloud
+    name: Cloud
+    tags:
+      - AWS
+      - Azure
+      - GCP
+      - Oracle Cloud
+      - Multi-cloud
+      - Hybrid Cloud
+      - Cloud Migration
+  - id: governance_security
+    name: Governance & Security
+    tags:
+      - Data Governance
+      - MDM
+      - Data Quality
+      - IAM
+      - Zero Trust
+      - Data Catalog
+      - Privacy & Compliance

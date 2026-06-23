@@ -1,5 +1,6 @@
-# FastAPI (aakp-api) + MCP Server — aakp-information namespace
+﻿# FastAPI (aakp-api) + MCP Server — aakp-information namespace
 # S1-DA-002: Application service manifests
+# S21-DA-001: sprint21-fix image tags (progress JSONB fix)
 #
 # Secret is NOT in this file — create it manually before applying:
 #   kubectl create secret generic aakp-api-secret -n aakp-information \
@@ -42,7 +43,7 @@ spec:
       serviceAccountName: aakp-sa
       initContainers:
         - name: alembic-migrate
-          image: aakp/api:sprint14
+          image: aakp/api:dev-sim-batch  # S29 multi-consultant comments
           imagePullPolicy: IfNotPresent
           command: ["alembic", "upgrade", "head"]
           envFrom:
@@ -52,7 +53,7 @@ spec:
                 name: aakp-api-secret
       containers:
         - name: api
-          image: aakp/api:sprint14
+          image: aakp/api:dev-sim-batch  # S29 multi-consultant comments
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
